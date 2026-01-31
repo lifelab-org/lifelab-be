@@ -6,7 +6,7 @@
 ---
 
 ## ⚙️ Tech Stack
-- **Language/Framework**: Java 21, Spring Boot 3
+- **Language/Framework**: Java 21, Spring Boot 3.5.10
 - **Build Tool**: Gradle (Kotlin DSL)
 - **DB엔진**: MySQL 8.0
 - **Docker 컨테이너명**: mysql-dev
