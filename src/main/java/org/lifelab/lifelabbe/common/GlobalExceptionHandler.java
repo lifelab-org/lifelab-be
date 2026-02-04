@@ -9,6 +9,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /** GlobalException (ErrorCode 기반) */
+    @ExceptionHandler(GlobalException.class)
+    public ResponseEntity<ApiResponse<Void>> handleGlobal(GlobalException e) {
+        ErrorCode code = e.getErrorCode();
+        return ResponseEntity
+                .status(code.status())
+                .body(ApiResponse.fail(code));
+    }
+
     /** 400 - 검증 실패*/
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException e) {
