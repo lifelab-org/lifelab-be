@@ -2,7 +2,7 @@ package org.lifelab.lifelabbe.config;
 
 import lombok.RequiredArgsConstructor;
 import org.lifelab.lifelabbe.security.JwtAuthenticationFilter;
-import org.lifelab.lifelabbe.security.JwtProvider;
+import org.lifelab.lifelabbe.security.JwtTokenProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,7 +13,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
-    private final JwtProvider jwtProvider;
+    private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
 
     @Bean
@@ -25,7 +25,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/kakao/**", "/success.html").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, jwtProperties.getCookieName()),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, jwtProperties.getCookieName()),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

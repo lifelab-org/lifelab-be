@@ -17,7 +17,6 @@ public class JwtTokenProvider {
 
     private final JwtProperties props;
 
-    // 0.12.x 버전부터는 SecretKey 타입을 사용해야 에러가 안 납니다.
     private SecretKey getSigningKey() {
         byte[] keyBytes = props.getSecret().getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -37,12 +36,11 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    // 에러 발생 지점 수정: parserBuilder() -> parser()
     public Claims parseClaims(String token) {
-        return Jwts.parser()                    // 1. parserBuilder() 대신 parser() 사용
-                .verifyWith(getSigningKey())    // 2. setSigningKey() 대신 verifyWith() 사용
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseSignedClaims(token)       // 3. parseClaimsJws() 대신 parseSignedClaims() 사용
-                .getPayload();                  // 4. getBody() 대신 getPayload() 사용
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }
