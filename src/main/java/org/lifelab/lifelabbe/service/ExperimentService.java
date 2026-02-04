@@ -6,11 +6,15 @@ import org.lifelab.lifelabbe.domain.ExperimentStatus;
 import org.lifelab.lifelabbe.domain.RecordItem;
 import org.lifelab.lifelabbe.dto.experiment.ExperimentCreateRequest;
 import org.lifelab.lifelabbe.dto.experiment.ExperimentCreateResponse;
+import org.lifelab.lifelabbe.dto.experiment.HomeOngoingExperimentResponse;
+import org.lifelab.lifelabbe.dto.experiment.TodayRecordStatus;
+import org.lifelab.lifelabbe.repository.ExperimentPreStateValueRepository;
 import org.lifelab.lifelabbe.repository.ExperimentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -21,6 +25,7 @@ import java.util.stream.Collectors;
 public class ExperimentService {
 
     private final ExperimentRepository experimentRepository;
+    private final ExperimentPreStateValueRepository preStateValueRepository;
 
     @Transactional
     public ExperimentCreateResponse create(Long userId, ExperimentCreateRequest req) {
@@ -85,4 +90,39 @@ public class ExperimentService {
         if (today.isAfter(end)) return ExperimentStatus.COMPLETED;
         return ExperimentStatus.ONGOING;
     }
+
+    @Transactional(readOnly = true)
+    public List<HomeOngoingExperimentResponse> getOngoing(Long userId) {
+        LocalDate today = LocalDate.now();
+
+        List<Experiment> experiments =
+                experimentRepository.findByUserIdAndStatusOrderByEndDateAsc(userId, ExperimentStatus.ONGOING);
+
+        return experiments.stream()
+                .map(e -> {
+                    int dDay = (int) ChronoUnit.DAYS.between(today, e.getEndDate());
+                    boolean preStateRecorded = preStateValueRepository.existsByExperiment_Id(e.getId());
+                    TodayRecordStatus todayRecordStatus = TodayRecordStatus.NOT_AVAILABLE;
+
+                    return HomeOngoingExperimentResponse.of(
+                            e.getId(),
+                            e.getTitle(),
+                            dDay,
+                            preStateRecorded,
+                            todayRecordStatus
+                    );
+                })
+                .sorted(
+                        java.util.Comparator
+                                .comparingInt((HomeOngoingExperimentResponse r) ->
+                                        (r.dDay() != null && r.dDay() == 0) ? 0 : 1
+                                )
+                                .thenComparingInt(r -> r.preStateRecorded() ? 0 : 1)
+                                .thenComparingInt(r -> r.dDay() == null ? Integer.MAX_VALUE : r.dDay())
+                )
+
+
+                .toList();
+    }
+
 }
