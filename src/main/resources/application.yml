@@ -37,4 +37,4 @@ app:
     secret: "CHANGE_ME_TO_A_VERY_LONG_RANDOM_SECRET_KEY_32_BYTES_MINIMUM_123456"
     issuer: "lifelab"
     access-token-exp-minutes: 60
-    cookie-name: "ACCESS_TOKEN"
+    cookie-name: "access_token"

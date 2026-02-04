@@ -1,0 +1,88 @@
+package org.lifelab.lifelabbe.service;
+
+import lombok.RequiredArgsConstructor;
+import org.lifelab.lifelabbe.domain.Experiment;
+import org.lifelab.lifelabbe.domain.ExperimentStatus;
+import org.lifelab.lifelabbe.domain.RecordItem;
+import org.lifelab.lifelabbe.dto.experiment.ExperimentCreateRequest;
+import org.lifelab.lifelabbe.dto.experiment.ExperimentCreateResponse;
+import org.lifelab.lifelabbe.repository.ExperimentRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class ExperimentService {
+
+    private final ExperimentRepository experimentRepository;
+
+    @Transactional
+    public ExperimentCreateResponse create(Long userId, ExperimentCreateRequest req) {
+        validateDates(req.startDate(), req.endDate());
+        validateRecordItems(req.recordItems());
+
+        // 오늘 기준으로 status 결정
+        ExperimentStatus status = determineStatus(req.startDate(), req.endDate());
+
+        Experiment experiment = Experiment.builder()
+                .userId(userId)
+                .title(req.title().trim())
+                .rule(req.rule().trim())
+                .startDate(req.startDate())
+                .endDate(req.endDate())
+                .status(status) // 고정 ONGOING 제거
+                .build();
+
+        for (var itemReq : req.recordItems()) {
+            experiment.addRecordItem(new RecordItem(itemReq.name().trim()));
+        }
+
+        Experiment saved = experimentRepository.save(experiment);
+
+        return ExperimentCreateResponse.builder()
+                .experimentId(saved.getId())
+                .title(saved.getTitle())
+                .status(status.name())
+                .startDate(saved.getStartDate())
+                .endDate(saved.getEndDate())
+                .totalDays(saved.totalDaysInclusive())
+                .recordItems(saved.getRecordItems().stream()
+                        .map(ri -> ExperimentCreateResponse.RecordItemDto.builder()
+                                .recordItemId(ri.getId())
+                                .name(ri.getName())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
+    private void validateDates(LocalDate start, LocalDate end) {
+        if (start.isAfter(end)) {
+            throw new IllegalArgumentException("startDate는 endDate보다 늦을 수 없습니다.");
+        }
+    }
+
+    private void validateRecordItems(List<ExperimentCreateRequest.RecordItemCreate> items) {
+        Set<String> names = new HashSet<>();
+        for (var it : items) {
+            String n = it.name().trim();
+            if (n.isEmpty()) throw new IllegalArgumentException("recordItems.name은 비어있을 수 없습니다.");
+            if (!names.add(n)) throw new IllegalArgumentException("recordItems.name이 중복되었습니다: " + n);
+        }
+
+        if (items.size() > 10) throw new IllegalArgumentException("recordItems는 최대 10개까지 가능합니다.");
+    }
+
+    private ExperimentStatus determineStatus(LocalDate start, LocalDate end) {
+        LocalDate today = LocalDate.now();
+
+        if (today.isBefore(start)) return ExperimentStatus.UPCOMING;
+        if (today.isAfter(end)) return ExperimentStatus.COMPLETED;
+        return ExperimentStatus.ONGOING;
+    }
+}

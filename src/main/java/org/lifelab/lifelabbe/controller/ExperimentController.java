@@ -1,0 +1,33 @@
+package org.lifelab.lifelabbe.controller;
+import org.lifelab.lifelabbe.common.ApiResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.lifelab.lifelabbe.dto.experiment.ExperimentCreateRequest;
+import org.lifelab.lifelabbe.dto.experiment.ExperimentCreateResponse;
+import org.lifelab.lifelabbe.service.ExperimentService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/experiments")
+public class ExperimentController {
+
+    private final ExperimentService experimentService;
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<?>> create(
+            Authentication authentication,
+            @Valid @RequestBody ExperimentCreateRequest request
+    ) {
+        Long userId = Long.valueOf((String) authentication.getPrincipal());
+
+        experimentService.create(userId, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(201, "실험이 성공적으로 생성되었습니다."));
+    }
+
+}
