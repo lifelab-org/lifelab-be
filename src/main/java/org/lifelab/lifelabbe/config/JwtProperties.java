@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.jwt")
 public class JwtProperties {
     private String secret;
-    private String issuer;
-    private long accessTokenExpMinutes;
+    private String issuer = "lifelab";
+    private long accessTokenExpMinutes = 60;
     private String cookieName;
 }

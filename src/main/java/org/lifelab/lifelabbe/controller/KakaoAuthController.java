@@ -7,7 +7,7 @@ import org.lifelab.lifelabbe.config.JwtProperties;
 import org.lifelab.lifelabbe.domain.User;
 import org.lifelab.lifelabbe.dto.kakao.KakaoTokenResponse;
 import org.lifelab.lifelabbe.dto.kakao.KakaoUserResponse;
-import org.lifelab.lifelabbe.security.JwtProvider;
+import org.lifelab.lifelabbe.security.JwtTokenProvider;
 import org.lifelab.lifelabbe.service.KakaoAuthService;
 import org.lifelab.lifelabbe.service.UserAuthService;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +20,7 @@ import java.io.IOException;
 public class KakaoAuthController {
     private final KakaoAuthService kakaoAuthService;
     private final UserAuthService userAuthService;
-    private final JwtProvider jwtProvider;
+    private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
 
     @GetMapping("/login")
@@ -34,7 +34,7 @@ public class KakaoAuthController {
         KakaoUserResponse kakaoUser = kakaoAuthService.getUser(token.getAccessToken());
         User user = userAuthService.findOrCreate(kakaoUser);
 
-        String jwt = jwtProvider.createAccessToken(user.getId(), user.getKakaoId());
+        String jwt = jwtTokenProvider.createAccessToken(user.getId(), user.getKakaoId());
 
         Cookie cookie = new Cookie(jwtProperties.getCookieName(), jwt);
         cookie.setHttpOnly(true);

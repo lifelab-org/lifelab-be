@@ -17,7 +17,7 @@ import java.util.Collections;
 
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    private final JwtProvider jwtProvider;
+    private final JwtTokenProvider jwtTokenProvider;
     private final String cookieName;
 
     @Override
@@ -32,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null) {
             try {
-                Claims claims = jwtProvider.parseClaims(token);
+                Claims claims = jwtTokenProvider.parseClaims(token);
                 var auth = new UsernamePasswordAuthenticationToken(claims.getSubject(), null, Collections.emptyList());
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception e) {
