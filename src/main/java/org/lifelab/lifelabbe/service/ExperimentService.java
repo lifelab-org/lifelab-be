@@ -93,34 +93,45 @@ public class ExperimentService {
         LocalDate today = LocalDate.now();
 
         List<Experiment> experiments =
-                experimentRepository.findByUserIdAndStatusOrderByEndDateAsc(userId, ExperimentStatus.ONGOING);
+                experimentRepository.findByUserIdAndStatusAndResultCheckedFalseOrderByEndDateAsc(
+                        userId, ExperimentStatus.ONGOING
+                );
 
-        return experiments.stream()
+        // (일일기록 아직 없으니 임시)
+        TodayRecordStatus todayRecordStatus = TodayRecordStatus.NOT_AVAILABLE;
+
+        List<HomeOngoingExperimentResponse> mapped = experiments.stream()
                 .map(e -> {
-                    int dDay = (int) ChronoUnit.DAYS.between(today, e.getEndDate());
+                    int rawDDay = (int) ChronoUnit.DAYS.between(today, e.getEndDate()); // ✅ 음수면 D+N
                     boolean preStateRecorded = preStateValueRepository.existsByExperiment_Id(e.getId());
-                    TodayRecordStatus todayRecordStatus = TodayRecordStatus.NOT_AVAILABLE;
 
                     return HomeOngoingExperimentResponse.of(
                             e.getId(),
                             e.getTitle(),
-                            dDay,
+                            rawDDay,
                             preStateRecorded,
                             todayRecordStatus
                     );
                 })
+                .toList();
+
+        // ✅ 정렬 규칙:
+        // 1) D-DAY(0) 최상단
+        // 2) 그 다음 D-(양수) 작은 순
+        // 3) 마지막: preStateRecorded=false 이면서 (rawDDay>0)인 애들 중 dDay null인 애들 맨 아래
+        //    (HomeOngoingExperimentResponse에서 dDay가 null이면 실험전 미기록 + 아직 완료 전 상태)
+        return mapped.stream()
                 .sorted(
                         java.util.Comparator
                                 .comparingInt((HomeOngoingExperimentResponse r) ->
                                         (r.dDay() != null && r.dDay() == 0) ? 0 : 1
                                 )
-                                .thenComparingInt(r -> r.preStateRecorded() ? 0 : 1)
-                                .thenComparingInt(r -> r.dDay() == null ? Integer.MAX_VALUE : r.dDay())
+                                .thenComparingInt(r -> r.dDay() == null ? 1 : 0)
+                                .thenComparingInt(r -> r.dDay() == null ? Integer.MAX_VALUE : Math.abs(r.dDay()))
                 )
-
-
                 .toList();
     }
+
     @Transactional(readOnly = true)
     public List<HomeUpcomingExperimentResponse> getUpcoming(Long userId) {
         LocalDate today = LocalDate.now();
@@ -134,6 +145,17 @@ public class ExperimentService {
                 })
                 .toList();
     }
+    @Transactional
+    public void markResultChecked(Long userId, Long experimentId) {
+        Experiment experiment = experimentRepository.findByIdAndUserId(experimentId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 실험을 찾을 수 없습니다."));
+
+        experiment.markResultChecked();
+        experiment.markCompleted(); // 원하면 유지, 아니면 삭제 가능
+
+        // JPA 더티체킹으로 저장됨 (save 호출 없어도 됨)
+    }
+
 
 
 }
