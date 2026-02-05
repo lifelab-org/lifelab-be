@@ -29,5 +29,10 @@ public class ExperimentController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(201, "실험이 성공적으로 생성되었습니다."));
     }
+    @GetMapping("/ongoing")
+    public ResponseEntity<ApiResponse<?>> ongoing(Authentication authentication) {
+        Long userId = Long.valueOf((String) authentication.getPrincipal());
+        return ResponseEntity.ok(ApiResponse.success(200, experimentService.getOngoing(userId)));
+    }
 
 }

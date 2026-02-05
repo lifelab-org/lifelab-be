@@ -18,6 +18,15 @@ public record ApiResponse<T>(
                 .error(null)
                 .build();
     }
+    /** 데이터를 내려주는 성공 응답 */
+    public static <T> ApiResponse<T> success(int status, T data) {
+        return ApiResponse.<T>builder()
+                .result("Success")
+                .status(status)
+                .success(data)
+                .error(null)
+                .build();
+    }
 
     /** 실패 응답 */
     public static ApiResponse<Void> fail(ErrorCode errorCode) {
