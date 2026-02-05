@@ -34,5 +34,11 @@ public class ExperimentController {
         Long userId = Long.valueOf((String) authentication.getPrincipal());
         return ResponseEntity.ok(ApiResponse.success(200, experimentService.getOngoing(userId)));
     }
+    @GetMapping("/upcoming")
+    public ResponseEntity<ApiResponse<?>> upcoming(Authentication authentication) {
+        Long userId = Long.valueOf((String) authentication.getPrincipal());
+        return ResponseEntity.ok(ApiResponse.success(200, experimentService.getUpcoming(userId)));
+    }
+
 
 }

@@ -4,10 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.lifelab.lifelabbe.domain.Experiment;
 import org.lifelab.lifelabbe.domain.ExperimentStatus;
 import org.lifelab.lifelabbe.domain.RecordItem;
-import org.lifelab.lifelabbe.dto.experiment.ExperimentCreateRequest;
-import org.lifelab.lifelabbe.dto.experiment.ExperimentCreateResponse;
-import org.lifelab.lifelabbe.dto.experiment.HomeOngoingExperimentResponse;
-import org.lifelab.lifelabbe.dto.experiment.TodayRecordStatus;
+import org.lifelab.lifelabbe.dto.experiment.*;
 import org.lifelab.lifelabbe.repository.ExperimentPreStateValueRepository;
 import org.lifelab.lifelabbe.repository.ExperimentRepository;
 import org.springframework.stereotype.Service;
@@ -124,5 +121,19 @@ public class ExperimentService {
 
                 .toList();
     }
+    @Transactional(readOnly = true)
+    public List<HomeUpcomingExperimentResponse> getUpcoming(Long userId) {
+        LocalDate today = LocalDate.now();
+
+        return experimentRepository
+                .findByUserIdAndStatusOrderByStartDateAsc(userId, ExperimentStatus.UPCOMING)
+                .stream()
+                .map(e -> {
+                    int dDay = (int) ChronoUnit.DAYS.between(today, e.getStartDate());
+                    return HomeUpcomingExperimentResponse.of(e.getId(), e.getTitle(), dDay);
+                })
+                .toList();
+    }
+
 
 }
