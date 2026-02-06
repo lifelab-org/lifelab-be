@@ -11,3 +11,5 @@ public class LifelabApplication {
 		SpringApplication.run(LifelabApplication.class, args);
 	}
 }
+
+
