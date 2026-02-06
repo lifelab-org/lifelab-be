@@ -14,14 +14,14 @@ public class PreStateRequest {
 
     public static class ValueItem {
         @NotNull
-        private Long recordItemId;
+        private String recordItemId;
 
         @NotNull
         @Min(1)
         @Max(7)
         private Integer value;
 
-        public Long getRecordItemId() { return recordItemId; }
+        public String getRecordItemId() { return recordItemId; }
         public Integer getValue() { return value; }
     }
 }
