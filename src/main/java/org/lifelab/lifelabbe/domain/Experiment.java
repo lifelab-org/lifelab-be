@@ -36,6 +36,9 @@ public class Experiment {
     @Column(nullable = false, length = 20)
     private ExperimentStatus status;
 
+    @Column(nullable = false)
+    private boolean resultChecked = false;
+
     @OneToMany(mappedBy = "experiment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecordItem> recordItems = new ArrayList<>();
 
@@ -47,6 +50,7 @@ public class Experiment {
         this.startDate = startDate;
         this.endDate = endDate;
         this.status = status;
+        this.resultChecked = false;
     }
 
     public void addRecordItem(RecordItem item) {
@@ -57,4 +61,13 @@ public class Experiment {
     public int totalDaysInclusive() {
         return (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
     }
+
+    public void markResultChecked() {
+        this.resultChecked = true;
+    }
+
+    public void markCompleted() {
+        this.status = ExperimentStatus.COMPLETED;
+    }
+
 }
