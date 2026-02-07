@@ -25,10 +25,10 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
     );
 
     // 날짜 기반 조회 - 홈2
-    List<Experiment> findByUserIdAndStartDateLessThanEqualAndEndDateGreaterThanEqualAndResultCheckedFalseOrderByEndDateAsc(
+    // startDate <= today AND resultChecked=false
+    List<Experiment> findByUserIdAndStartDateLessThanEqualAndResultCheckedFalseOrderByEndDateAsc(
             Long userId,
-            LocalDate today1,
-            LocalDate today2
+            LocalDate today
     );
 
     //날짜 기반 조회 - 홈3
@@ -48,6 +48,7 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
            set e.status = org.lifelab.lifelabbe.domain.ExperimentStatus.COMPLETED
          where e.status = org.lifelab.lifelabbe.domain.ExperimentStatus.ONGOING
            and e.endDate < :today
+           and e.resultChecked = true
     """)
     int updateOngoingToCompleted(@Param("today") LocalDate today);
 

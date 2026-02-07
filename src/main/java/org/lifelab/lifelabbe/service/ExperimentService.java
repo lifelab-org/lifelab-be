@@ -103,8 +103,8 @@ public class ExperimentService {
 
         List<Experiment> experiments =
                 experimentRepository
-                        .findByUserIdAndStartDateLessThanEqualAndEndDateGreaterThanEqualAndResultCheckedFalseOrderByEndDateAsc(
-                                userId, today, today
+                        .findByUserIdAndStartDateLessThanEqualAndResultCheckedFalseOrderByEndDateAsc(
+                                userId, today
                         );
 
         TodayRecordStatus todayRecordStatus =
@@ -136,29 +136,31 @@ public class ExperimentService {
                         })
                         .toList();
 
+        // 1) D-DAY(0) 최상단
+        // 2) dDay null(=preState 미기록 & D-DAY 아님) 최하단
+        // 3) 나머지는 "급한 순": 이미 지난 것(D+N) 먼저, 그리고 남은 것(D-N) 적은 순
         return mapped.stream()
-                .sorted(
-                        java.util.Comparator
-                                .comparingInt(
-                                        (HomeOngoingExperimentResponse r) ->
-                                                (r.dDay() != null
-                                                        && r.dDay() == 0)
-                                                        ? 0
-                                                        : 1
-                                )
-                                .thenComparingInt(
-                                        r ->
-                                                r.dDay() == null
-                                                        ? 1
-                                                        : 0
-                                )
-                                .thenComparingInt(
-                                        r ->
-                                                r.dDay() == null
-                                                        ? Integer.MAX_VALUE
-                                                        : Math.abs(r.dDay())
-                                )
-                )
+                .sorted((a, b) -> {
+                    boolean aNull = (a.dDay() == null);
+                    boolean bNull = (b.dDay() == null);
+                    if (aNull != bNull) return aNull ? 1 : -1;
+
+                    // 둘 다 null 아니면 dDay 비교
+                    int ad = a.dDay();
+                    int bd = b.dDay();
+
+                    boolean aDDay = (ad == 0);
+                    boolean bDDay = (bd == 0);
+                    if (aDDay != bDDay) return aDDay ? -1 : 1;
+
+                    boolean aOver = (ad < 0); // D+N
+                    boolean bOver = (bd < 0);
+                    if (aOver != bOver) return aOver ? -1 : 1;
+
+                    // 같은 그룹 정렬
+                    if (aOver) return Integer.compare(Math.abs(ad), Math.abs(bd)); // D+1이 위
+                    return Integer.compare(ad, bd); // D-1이 위
+                })
                 .toList();
     }
 
@@ -273,5 +275,25 @@ public class ExperimentService {
             return ExperimentStatus.COMPLETED;
 
         return ExperimentStatus.ONGOING;
+    }
+    @Transactional(readOnly = true)
+    public ExperimentDetailResponse getDetail(Long userId, Long experimentId) {
+
+        Experiment e = experimentRepository.findByIdAndUserId(experimentId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 실험을 찾을 수 없습니다."));
+
+        LocalDate today = LocalDate.now();
+
+        int rawDDay = (int) ChronoUnit.DAYS.between(today, e.getEndDate());
+
+        return ExperimentDetailResponse.of(
+                e.getId(),
+                e.getTitle(),
+                e.getStartDate(),
+                e.getEndDate(),
+                e.totalDaysInclusive(),
+                rawDDay,
+                e.getRule()
+        );
     }
 }
