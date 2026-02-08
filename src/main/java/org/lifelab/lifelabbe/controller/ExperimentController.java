@@ -23,11 +23,18 @@ public class ExperimentController {
             @Valid @RequestBody ExperimentCreateRequest request
     ) {
         Long userId = Long.valueOf((String) authentication.getPrincipal());
+        // 서비스 응답(ExperimentCreateResponse)을 그대로 받아서 내려준다
+        ExperimentCreateResponse full =
+                experimentService.create(userId, request);
 
-        experimentService.create(userId, request);
+        ExperimentCreateResponse response =
+                new ExperimentCreateResponse(
+                        full.experimentId(),
+                        "실험이 생성되었습니다."
+                );
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(201, "실험이 성공적으로 생성되었습니다."));
+                .body(ApiResponse.success(201, response));
     }
     // 진행중
     @GetMapping("/ongoing")
