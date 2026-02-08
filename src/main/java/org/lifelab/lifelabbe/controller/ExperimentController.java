@@ -29,21 +29,21 @@ public class ExperimentController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(201, "실험이 성공적으로 생성되었습니다."));
     }
-    // ✅ 홈2
+    // 진행중
     @GetMapping("/ongoing")
     public ResponseEntity<ApiResponse<?>> ongoing(Authentication authentication) {
         Long userId = Long.valueOf((String) authentication.getPrincipal());
         return ResponseEntity.ok(ApiResponse.success(200, experimentService.getOngoing(userId)));
     }
 
-    // ✅ 홈3
+    // 진행 전
     @GetMapping("/upcoming")
     public ResponseEntity<ApiResponse<?>> upcoming(Authentication authentication) {
         Long userId = Long.valueOf((String) authentication.getPrincipal());
         return ResponseEntity.ok(ApiResponse.success(200, experimentService.getUpcoming(userId)));
     }
 
-    // ✅ 결과 확인(클릭) 처리 → 홈2에서 사라지게
+    // 결과 확인(클릭) 처리 → 홈2에서 사라지게
     @PostMapping("/{experimentId}/result-check")
     public ResponseEntity<ApiResponse<?>> resultCheck(
             Authentication authentication,
@@ -52,6 +52,15 @@ public class ExperimentController {
         Long userId = Long.valueOf((String) authentication.getPrincipal());
         experimentService.markResultChecked(userId, experimentId);
         return ResponseEntity.ok(ApiResponse.success(200, "결과 확인 처리 완료"));
+    }
+
+    @GetMapping("/{experimentId}")
+    public ResponseEntity<ApiResponse<?>> detail(
+            Authentication authentication,
+            @PathVariable Long experimentId
+    ) {
+        Long userId = Long.valueOf((String) authentication.getPrincipal());
+        return ResponseEntity.ok(ApiResponse.success(200, experimentService.getDetail(userId, experimentId)));
     }
 
 }

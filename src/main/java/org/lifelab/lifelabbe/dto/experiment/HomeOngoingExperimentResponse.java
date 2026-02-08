@@ -12,14 +12,11 @@ public record HomeOngoingExperimentResponse(
     public static HomeOngoingExperimentResponse of(
             Long experimentId,
             String title,
-            int rawDDay,                 // today ~ endDate (지나면 음수)
+            int rawDDay,
             boolean preStateRecorded,
             TodayRecordStatus todayRecordStatus
     ) {
-        // ✅ 규칙:
-        // - D-DAY / D+N은 preStateRecorded와 상관없이 표시(결과 확인 UX 위해)
-        // - 아직 실험 전 기록이 없으면 dDay는 숨김(null)
-        boolean isFinishedOrDDay = rawDDay <= 0; // D-DAY(0) 또는 D+N(음수)
+        boolean isFinishedOrDDay = rawDDay <= 0;
         boolean showDDay = isFinishedOrDDay || preStateRecorded;
 
         Integer outDDay = showDDay ? rawDDay : null;
@@ -27,7 +24,7 @@ public record HomeOngoingExperimentResponse(
 
         String subtitle;
         if (isFinishedOrDDay) {
-            // ✅ 기간 끝났으면 무조건 결과 확인 유도
+            // 기간 끝났으면 무조건 결과 확인 유도
             subtitle = "실험이 완료되었어요! 결과를 확인해보세요";
         } else if (!preStateRecorded) {
             subtitle = "아직 실험 전 상태가 기록되지 않았어요!";
@@ -52,6 +49,6 @@ public record HomeOngoingExperimentResponse(
     private static String makeLabel(int rawDDay) {
         if (rawDDay == 0) return "D-DAY";
         if (rawDDay > 0) return "D-" + rawDDay;
-        return "D+" + (-rawDDay); // ✅ endDate 지났는데 확인 안 하면 D+N
+        return "D+" + (-rawDDay); // endDate 지났는데 확인 안 하면 D+N
     }
 }
