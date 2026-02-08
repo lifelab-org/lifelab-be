@@ -19,7 +19,7 @@ public record HomeOngoingExperimentResponse(
         boolean isFinishedOrDDay = rawDDay <= 0;
         boolean showDDay = isFinishedOrDDay || preStateRecorded;
 
-        Integer outDDay = showDDay ? rawDDay : null;
+        Integer outDDay = rawDDay; //  null 금지
         String outDDayLabel = showDDay ? makeLabel(rawDDay) : null;
 
         String subtitle;

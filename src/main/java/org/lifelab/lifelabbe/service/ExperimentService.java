@@ -10,7 +10,7 @@ import org.lifelab.lifelabbe.repository.ExperimentPreStateValueRepository;
 import org.lifelab.lifelabbe.repository.ExperimentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
@@ -69,25 +69,10 @@ public class ExperimentService {
         Experiment saved =
                 experimentRepository.save(experiment);
 
-        return ExperimentCreateResponse.builder()
-                .experimentId(saved.getId())
-                .title(saved.getTitle())
-                .status(status.name())
-                .startDate(saved.getStartDate())
-                .endDate(saved.getEndDate())
-                .totalDays(saved.totalDaysInclusive())
-                .recordItems(
-                        saved.getRecordItems().stream()
-                                .map(ri ->
-                                        ExperimentCreateResponse
-                                                .RecordItemDto.builder()
-                                                .recordItemId(ri.getId())
-                                                .name(ri.getName())
-                                                .build()
-                                )
-                                .collect(Collectors.toList())
-                )
-                .build();
+        return new ExperimentCreateResponse(
+                saved.getId(),
+                "실험이 생성되었습니다."
+        );
     }
 
     // 홈2: 진행중 실험
@@ -220,13 +205,23 @@ public class ExperimentService {
                         );
 
         experiment.markResultChecked();
+        experiment.changeStatus(ExperimentStatus.COMPLETED); // ✅ 이 줄 추가
     }
+
 
     // 내부 유틸
     private void validateDates(
             LocalDate start,
             LocalDate end
     ) {
+        // ✅ 추가: 시작일이 오늘보다 과거면 생성 불가
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        if (start.isBefore(today)) {
+            throw new IllegalArgumentException(
+                    "startDate는 오늘 이전으로 설정할 수 없습니다."
+            );
+        }
+        // 시작일이 종료일보다 늦으면 불가
         if (start.isAfter(end)) {
             throw new IllegalArgumentException(
                     "startDate는 endDate보다 늦을 수 없습니다."

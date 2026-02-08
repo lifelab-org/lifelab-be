@@ -69,5 +69,8 @@ public class Experiment {
     public void markCompleted() {
         this.status = ExperimentStatus.COMPLETED;
     }
+    public void changeStatus(ExperimentStatus status) {
+        this.status = status;
+    }
 
 }
