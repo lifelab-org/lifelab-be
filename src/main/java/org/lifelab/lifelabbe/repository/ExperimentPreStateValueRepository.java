@@ -24,4 +24,12 @@ public interface ExperimentPreStateValueRepository extends JpaRepository<Experim
             @Param("userId") Long userId,
             @Param("experimentIds") Collection<Long> experimentIds
     );
+    //일일기록 검증용: 이 실험에서 요구되는 recordItemKey 목록
+
+    @Query("""
+        select v.recordItemKey
+        from ExperimentPreStateValue v
+        where v.experiment.id = :experimentId
+    """)
+    List<String> findRecordItemKeysByExperimentId(@Param("experimentId") Long experimentId);
 }

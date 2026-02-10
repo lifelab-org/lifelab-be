@@ -14,4 +14,9 @@ public class GlobalException extends RuntimeException {
         super(errorCode.message());
         this.errorCode = errorCode;
     }
+    // 상세 메시지 포함 생성자
+    public GlobalException(ErrorCode errorCode, String detailMessage) {
+        super(detailMessage);
+        this.errorCode = errorCode;
+    }
 }

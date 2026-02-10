@@ -205,7 +205,7 @@ public class ExperimentService {
                         );
 
         experiment.markResultChecked();
-        experiment.changeStatus(ExperimentStatus.COMPLETED); // ✅ 이 줄 추가
+        experiment.changeStatus(ExperimentStatus.COMPLETED);
     }
 
 
