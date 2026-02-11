@@ -69,5 +69,15 @@ public class ExperimentController {
         Long userId = Long.valueOf((String) authentication.getPrincipal());
         return ResponseEntity.ok(ApiResponse.success(200, experimentService.getDetail(userId, experimentId)));
     }
+    @DeleteMapping("/{experimentId}")
+    public ResponseEntity<ApiResponse<?>> delete(
+            Authentication authentication,
+            @PathVariable Long experimentId
+    ) {
+        Long userId = Long.valueOf((String) authentication.getPrincipal());
+        experimentService.deleteExperiment(userId, experimentId);
+        return ResponseEntity.ok(ApiResponse.success(200, "삭제 완료"));
+    }
+
 
 }

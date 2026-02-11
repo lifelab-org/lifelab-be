@@ -13,6 +13,8 @@ public interface ExperimentPreStateValueRepository extends JpaRepository<Experim
     // 가장 안전한 네이밍 (experiment.id로 탐색)
     boolean existsByExperiment_Id(Long experimentId);
 
+    void deleteByExperiment_Id(Long experimentId);
+
     // ongoing 리스트용 (여러 실험 한 번에)
     @Query("""
         select distinct v.experiment.id
