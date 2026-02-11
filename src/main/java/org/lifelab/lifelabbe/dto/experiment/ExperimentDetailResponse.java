@@ -1,6 +1,7 @@
 package org.lifelab.lifelabbe.dto.experiment;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record ExperimentDetailResponse(
         Long experimentId,
@@ -8,9 +9,12 @@ public record ExperimentDetailResponse(
         LocalDate startDate,
         LocalDate endDate,
         int totalDays,
-        int dDay,            // raw dDay (0, 양수, 음수)
-        String dDayLabel,    // D-8 / D-DAY / D+1
-        String rule
+        int dDay,
+        String dDayLabel,
+        String rule,
+
+        TodayRecordStatus todayRecordStatus,
+        List<String> recordItems
 ) {
     public static ExperimentDetailResponse of(
             Long experimentId,
@@ -19,7 +23,9 @@ public record ExperimentDetailResponse(
             LocalDate endDate,
             int totalDays,
             int rawDDay,
-            String rule
+            String rule,
+            TodayRecordStatus todayRecordStatus,
+            List<String> recordItems
     ) {
         return new ExperimentDetailResponse(
                 experimentId,
@@ -29,7 +35,9 @@ public record ExperimentDetailResponse(
                 totalDays,
                 rawDDay,
                 makeLabel(rawDDay),
-                rule
+                rule,
+                todayRecordStatus,
+                recordItems
         );
     }
 

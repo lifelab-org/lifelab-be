@@ -6,8 +6,7 @@ import org.lifelab.lifelabbe.domain.Experiment;
 import org.lifelab.lifelabbe.domain.ExperimentStatus;
 import org.lifelab.lifelabbe.domain.RecordItem;
 import org.lifelab.lifelabbe.dto.experiment.*;
-import org.lifelab.lifelabbe.repository.ExperimentPreStateValueRepository;
-import org.lifelab.lifelabbe.repository.ExperimentRepository;
+import org.lifelab.lifelabbe.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.ZoneId;
@@ -25,6 +24,10 @@ public class ExperimentService {
 
     private final ExperimentRepository experimentRepository;
     private final ExperimentPreStateValueRepository preStateValueRepository;
+    private final DailyRecordRepository dailyRecordRepository;
+    private final DailyRecordValueRepository dailyRecordValueRepository;
+    private final RecordItemRepository recordItemRepository;
+
 
     // 상태 자동 동기화
     @Transactional
@@ -92,9 +95,6 @@ public class ExperimentService {
                                 userId, today
                         );
 
-        TodayRecordStatus todayRecordStatus =
-                TodayRecordStatus.NOT_AVAILABLE;
-
         List<HomeOngoingExperimentResponse> mapped =
                 experiments.stream()
                         .map(e -> {
@@ -111,6 +111,15 @@ public class ExperimentService {
                                                     e.getId()
                                             );
 
+                            // 오늘 기록 존재 여부로 DONE/NONE 결정
+                            TodayRecordStatus todayRecordStatus =
+                                    dailyRecordRepository.existsByExperimentIdAndRecordDate(
+                                            e.getId(),
+                                            today
+                                    )
+                                            ? TodayRecordStatus.DONE
+                                            : TodayRecordStatus.NONE;
+
                             return HomeOngoingExperimentResponse.of(
                                     e.getId(),
                                     e.getTitle(),
@@ -122,7 +131,7 @@ public class ExperimentService {
                         .toList();
 
         // 1) D-DAY(0) 최상단
-        // 2) dDay null(=preState 미기록 & D-DAY 아님) 최하단
+        // 2) dDay null(=preState 미기록 & D-DAY 아님) 최하단  ← (현재는 dDay null이 안 나옴: outDDay=rawDDay라서)
         // 3) 나머지는 "급한 순": 이미 지난 것(D+N) 먼저, 그리고 남은 것(D-N) 적은 순
         return mapped.stream()
                 .sorted((a, b) -> {
@@ -130,7 +139,6 @@ public class ExperimentService {
                     boolean bNull = (b.dDay() == null);
                     if (aNull != bNull) return aNull ? 1 : -1;
 
-                    // 둘 다 null 아니면 dDay 비교
                     int ad = a.dDay();
                     int bd = b.dDay();
 
@@ -142,12 +150,12 @@ public class ExperimentService {
                     boolean bOver = (bd < 0);
                     if (aOver != bOver) return aOver ? -1 : 1;
 
-                    // 같은 그룹 정렬
                     if (aOver) return Integer.compare(Math.abs(ad), Math.abs(bd)); // D+1이 위
                     return Integer.compare(ad, bd); // D-1이 위
                 })
                 .toList();
     }
+
 
     // 홈3: 예정 실험
     @Transactional
@@ -281,6 +289,18 @@ public class ExperimentService {
 
         int rawDDay = (int) ChronoUnit.DAYS.between(today, e.getEndDate());
 
+        // 오늘 기록 여부
+        boolean hasTodayRecord =
+                dailyRecordRepository.existsByExperimentIdAndRecordDate(experimentId, today);
+
+        TodayRecordStatus todayRecordStatus =
+                hasTodayRecord ? TodayRecordStatus.DONE : TodayRecordStatus.NONE;
+
+        // 기록 항목(실험 생성 시 넣은 RecordItem들)
+        List<String> recordItems = e.getRecordItems().stream()
+                .map(RecordItem::getName)
+                .toList();
+
         return ExperimentDetailResponse.of(
                 e.getId(),
                 e.getTitle(),
@@ -288,7 +308,34 @@ public class ExperimentService {
                 e.getEndDate(),
                 e.totalDaysInclusive(),
                 rawDDay,
-                e.getRule()
+                e.getRule(),
+                todayRecordStatus,
+                recordItems
         );
     }
+    @Transactional
+    public void deleteExperiment(Long userId, Long experimentId) {
+
+        // 1) 내 실험인지 검증
+        Experiment experiment = experimentRepository.findByIdAndUserId(experimentId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 실험을 찾을 수 없습니다."));
+
+        // 2) DailyRecordValue(자식) -> DailyRecord(부모) 삭제
+        var dailyRecords = dailyRecordRepository.findByExperimentId(experimentId);
+        for (var dr : dailyRecords) {
+            dailyRecordValueRepository.deleteByDailyRecord_Id(dr.getId());
+        }
+        dailyRecordRepository.deleteByExperimentId(experimentId);
+
+        // 3) PreState 삭제
+        preStateValueRepository.deleteByExperiment_Id(experimentId);
+
+        // 4) RecordItem 삭제
+        recordItemRepository.deleteByExperiment_Id(experimentId);
+
+        // 5) 마지막으로 Experiment 삭제
+        experimentRepository.delete(experiment);
+    }
+
+
 }
