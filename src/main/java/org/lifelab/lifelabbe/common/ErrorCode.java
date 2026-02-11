@@ -4,7 +4,7 @@ public enum ErrorCode {
 
     /* 400 */
     INVALID_PARAMETER(400, "INVALID_PARAMETER", "요청 값이 올바르지 않습니다."),
-
+    
     /* 401 */
     AUTH_401(401, "AUTH_401", "인증 토큰이 유효하지 않습니다."),
 
@@ -13,7 +13,7 @@ public enum ErrorCode {
 
     /*  404  */
     EXP_404(404, "EXP_404", "해당 실험을 찾을 수 없습니다."),
-
+    PRE_STATE_404(404, "PRE_STATE_404", "실험 전 상태가 존재하지 않습니다."),
     /*  409  */
     REC_409(409, "REC_409", "이미 오늘의 기록이 존재합니다."),
 
