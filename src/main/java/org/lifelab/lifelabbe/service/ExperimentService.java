@@ -2,6 +2,8 @@ package org.lifelab.lifelabbe.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.lifelab.lifelabbe.common.ErrorCode;
+import org.lifelab.lifelabbe.common.GlobalException;
 import org.lifelab.lifelabbe.domain.Experiment;
 import org.lifelab.lifelabbe.domain.ExperimentStatus;
 import org.lifelab.lifelabbe.domain.RecordItem;
@@ -43,7 +45,31 @@ public class ExperimentService {
                 today, completed, ongoing
         );
     }
+    // 실험 생성 시 저장된 기록 항목 조회
+    @Transactional(readOnly = true)
+    public ExperimentCreateRecordItemsResponse getCreateRecordItems(Long userId, Long experimentId) {
 
+        // 실험 존재 + 내 실험인지 검증
+        Experiment experiment = experimentRepository.findByIdAndUserId(experimentId, userId)
+                .orElseThrow(() -> new GlobalException(ErrorCode.EXP_404));
+
+        // RecordItem → DTO 변환
+        List<ExperimentCreateRecordItemsResponse.RecordItemKeyResponse> values =
+                experiment.getRecordItems()
+                        .stream()
+                        .map(ri ->
+                                new ExperimentCreateRecordItemsResponse.RecordItemKeyResponse(
+                                        ri.getName()
+                                )
+                        )
+                        .toList();
+
+        // 반환
+        return new ExperimentCreateRecordItemsResponse(
+                experiment.getId(),
+                values
+        );
+    }
     // 실험 생성
     @Transactional
     public ExperimentCreateResponse create(Long userId, ExperimentCreateRequest req) {
@@ -130,9 +156,9 @@ public class ExperimentService {
                         })
                         .toList();
 
-        // 1) D-DAY(0) 최상단
-        // 2) dDay null(=preState 미기록 & D-DAY 아님) 최하단  ← (현재는 dDay null이 안 나옴: outDDay=rawDDay라서)
-        // 3) 나머지는 "급한 순": 이미 지난 것(D+N) 먼저, 그리고 남은 것(D-N) 적은 순
+        //D-DAY(0) 최상단
+        //dDay null(=preState 미기록 & D-DAY 아님) 최하단  ← (현재는 dDay null이 안 나옴: outDDay=rawDDay라서)
+        //나머지는 "급한 순": 이미 지난 것(D+N) 먼저, 그리고 남은 것(D-N) 적은 순
         return mapped.stream()
                 .sorted((a, b) -> {
                     boolean aNull = (a.dDay() == null);
@@ -207,10 +233,7 @@ public class ExperimentService {
                         )
                         .orElseThrow(
                                 () ->
-                                        new IllegalArgumentException(
-                                                "해당 실험을 찾을 수 없습니다."
-                                        )
-                        );
+                                        new GlobalException(ErrorCode.EXP_404));
 
         experiment.markResultChecked();
         experiment.changeStatus(ExperimentStatus.COMPLETED);
@@ -222,24 +245,24 @@ public class ExperimentService {
             LocalDate start,
             LocalDate end
     ) {
-        // ✅ 추가: 시작일이 오늘보다 과거면 생성 불가
+        //시작일이 오늘보다 과거면 생성 불가
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         if (start.isBefore(today)) {
-            throw new IllegalArgumentException(
-                    "startDate는 오늘 이전으로 설정할 수 없습니다."
-            );
+            throw new GlobalException(ErrorCode.INVALID_START_DATE);
         }
         // 시작일이 종료일보다 늦으면 불가
         if (start.isAfter(end)) {
-            throw new IllegalArgumentException(
-                    "startDate는 endDate보다 늦을 수 없습니다."
-            );
+            throw new GlobalException(ErrorCode.INVALID_DATE_RANGE);
         }
     }
 
     private void validateRecordItems(
             List<ExperimentCreateRequest.RecordItemCreate> items
     ) {
+        if (items == null || items.isEmpty()) {
+            //요청값 비었을 때도 에러코드로
+            throw new GlobalException(ErrorCode.INVALID_PARAMETER);
+        }
 
         Set<String> names = new HashSet<>();
 
@@ -248,20 +271,14 @@ public class ExperimentService {
             String n = it.name().trim();
 
             if (n.isEmpty())
-                throw new IllegalArgumentException(
-                        "recordItems.name은 비어있을 수 없습니다."
-                );
+                throw new GlobalException(ErrorCode.INVALID_PARAMETER);
 
             if (!names.add(n))
-                throw new IllegalArgumentException(
-                        "recordItems.name이 중복되었습니다: " + n
-                );
+                throw new GlobalException(ErrorCode.DUPLICATE_RECORD_ITEM);
         }
 
         if (items.size() > 10)
-            throw new IllegalArgumentException(
-                    "recordItems는 최대 10개까지 가능합니다."
-            );
+            throw new GlobalException(ErrorCode.TOO_MANY_RECORD_ITEMS);
     }
 
     private ExperimentStatus determineStatus(
@@ -283,7 +300,7 @@ public class ExperimentService {
     public ExperimentDetailResponse getDetail(Long userId, Long experimentId) {
 
         Experiment e = experimentRepository.findByIdAndUserId(experimentId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 실험을 찾을 수 없습니다."));
+                .orElseThrow(() -> new GlobalException(ErrorCode.EXP_404));
 
         LocalDate today = LocalDate.now();
 
@@ -316,24 +333,24 @@ public class ExperimentService {
     @Transactional
     public void deleteExperiment(Long userId, Long experimentId) {
 
-        // 1) 내 실험인지 검증
+        // 내 실험인지 검증
         Experiment experiment = experimentRepository.findByIdAndUserId(experimentId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 실험을 찾을 수 없습니다."));
+                .orElseThrow(() -> new GlobalException(ErrorCode.EXP_404));
 
-        // 2) DailyRecordValue(자식) -> DailyRecord(부모) 삭제
+        //DailyRecordValue(자식) -> DailyRecord(부모) 삭제
         var dailyRecords = dailyRecordRepository.findByExperimentId(experimentId);
         for (var dr : dailyRecords) {
             dailyRecordValueRepository.deleteByDailyRecord_Id(dr.getId());
         }
         dailyRecordRepository.deleteByExperimentId(experimentId);
 
-        // 3) PreState 삭제
+        //PreState 삭제
         preStateValueRepository.deleteByExperiment_Id(experimentId);
 
-        // 4) RecordItem 삭제
+        //RecordItem 삭제
         recordItemRepository.deleteByExperiment_Id(experimentId);
 
-        // 5) 마지막으로 Experiment 삭제
+        //Experiment 삭제
         experimentRepository.delete(experiment);
     }
 
