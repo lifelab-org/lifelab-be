@@ -32,7 +32,7 @@ public class JwtTokenProvider {
                 .claim("kakaoId", kakaoId)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expMs))
-                .signWith(getSigningKey(), Jwts.SIG.HS256) // SIG.HS256이 여기서 쓰입니다.
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
