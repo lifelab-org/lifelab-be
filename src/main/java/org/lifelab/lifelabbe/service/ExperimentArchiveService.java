@@ -10,7 +10,8 @@ import org.lifelab.lifelabbe.repository.DailyRecordRepository;
 import org.lifelab.lifelabbe.repository.ExperimentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -20,8 +21,12 @@ public class ExperimentArchiveService {
     private final ExperimentRepository experimentRepository;
     private final DailyRecordRepository dailyRecordRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ArchiveListResponse getArchive(Long userId) {
+
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        experimentRepository.updateUpcomingToOngoing(today);
+        experimentRepository.updateOngoingToCompleted(today);
 
         List<Experiment> completed =
                 experimentRepository.findByUserIdAndStatusOrderByEndDateDesc(userId, ExperimentStatus.COMPLETED);

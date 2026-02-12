@@ -36,8 +36,8 @@ public class DailyRecordService {
         Experiment experiment = experimentRepository
                 .findByIdAndUserId(experimentId, userId)
                 .orElseThrow(() -> new GlobalException(ErrorCode.EXP_404));
-        if (req == null || req.values() == null || req.values().isEmpty()) { // ✅ 수정
-            throw new GlobalException(ErrorCode.INVALID_PARAMETER);          // ✅ 수정
+        if (req == null || req.values() == null || req.values().isEmpty()) {
+            throw new GlobalException(ErrorCode.INVALID_PARAMETER);
         }
         // 오늘 기록 이미 존재하면 409
         if (dailyRecordRepository.existsByExperimentIdAndRecordDate(experimentId, today)) {
@@ -52,7 +52,7 @@ public class DailyRecordService {
             throw new GlobalException(ErrorCode.PRE_STATE_404);
         }
 
-        // allowedSet 만들기 (trim 적용)
+        // allowedSet 만들기
         Set<String> allowedSet = new HashSet<>();
         for (String k : allowedKeys) {
             String key = normalizeKey(k);
@@ -86,7 +86,7 @@ public class DailyRecordService {
             }
         }
 
-        // 전부 체크 필수 (요청 key 집합 == allowedSet)
+        // 전부 체크 필수
         if (!seen.equals(allowedSet)) {
             throw new GlobalException(ErrorCode.PRE_STATE_ITEMS_MISMATCH);
         }
@@ -143,7 +143,7 @@ public class DailyRecordService {
                 .map(this::normalizeKey)
                 .filter(k -> k != null && !k.isBlank())
                 .distinct()
-                .map(DailyRecordItemsResponse.Item::new) //Item(String recordItemKey) 생성자 형태여야 함
+                .map(DailyRecordItemsResponse.Item::new)
                 .toList();
 
         // 유효한 key가 하나도 없으면 파라미터 오류로 처리

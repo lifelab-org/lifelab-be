@@ -46,7 +46,7 @@ public class ExperimentPreStateService {
             throw new GlobalException(ErrorCode.INVALID_PARAMETER);
         }
 
-        // ✅ 수정: "이 실험에서 허용된 기록 항목(key) 집합" 만들기
+        // 실험에서 허용된 기록 항목(key) 집합
         Set<String> allowedKeys = new HashSet<>();
         for (RecordItem ri : experiment.getRecordItems()) {
             if (ri != null && ri.getName() != null) {
@@ -54,13 +54,13 @@ public class ExperimentPreStateService {
             }
         }
 
-        // ✅ 수정: 실험에 기록항목이 아예 없으면 저장 불가(방어)
+        //실험에 기록항목이 아예 없으면 저장 불가
         if (allowedKeys.isEmpty()) {
             throw new GlobalException(ErrorCode.INVALID_PARAMETER);
         }
 
         List<ExperimentPreStateValue> values = new ArrayList<>();
-        Set<String> requestedKeys = new HashSet<>(); // ✅ 수정: dedup의 의미를 명확히 (요청된 key 집합)
+        Set<String> requestedKeys = new HashSet<>();
 
         // 개별 항목 검증 + 저장 객체 생성
         for (PreStateRequest.ValueItem item : request.getValues()) {
@@ -73,12 +73,12 @@ public class ExperimentPreStateService {
                 throw new GlobalException(ErrorCode.INVALID_PARAMETER);
             }
 
-            // ✅ 수정: 같은 요청에서 중복 키 방지
+            // 같은 요청에서 중복 키 방지
             if (!requestedKeys.add(key)) {
                 throw new GlobalException(ErrorCode.INVALID_PARAMETER);
             }
 
-            // ✅ 수정: 요청된 key가 "해당 실험의 기록항목"과 일치하는지 검증 (핵심)
+            // 요청된 key가 "해당 실험의 기록항목"과 일치하는지 검증
             if (!allowedKeys.contains(key)) {
                 // ErrorCode를 더 세분화하고 싶으면 PRE_STATE_ITEM_NOT_IN_EXPERIMENT 같은 걸 추가 추천
                 throw new GlobalException(ErrorCode.PRE_STATE_ITEMS_MISMATCH);
@@ -87,12 +87,12 @@ public class ExperimentPreStateService {
             values.add(ExperimentPreStateValue.of(experiment, key, item.getValue()));
         }
 
-        // ✅ 선택: "완전 일치" 정책(누락도 불가)라면 주석 해제
+        // "완전 일치" 정책(누락도 불가)
         if (!requestedKeys.equals(allowedKeys)) {
             throw new GlobalException(ErrorCode.INVALID_PARAMETER);
          }
 
-        // 6) 일괄 저장
+        // 일괄 저장
         preStateValueRepository.saveAll(values);
 
         return new PreStateResponse(experimentId, true);

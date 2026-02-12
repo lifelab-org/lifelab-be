@@ -191,7 +191,7 @@ public class ExperimentService {
 
         LocalDate today = LocalDate.now();
 
-        // ⭐ status 자동 업데이트
+        // status 자동 업데이트
         syncStatuses(today);
 
         log.info("getUpcoming userId={}, today={}", userId, today);
@@ -337,7 +337,6 @@ public class ExperimentService {
         Experiment experiment = experimentRepository.findByIdAndUserId(experimentId, userId)
                 .orElseThrow(() -> new GlobalException(ErrorCode.EXP_404));
 
-        //DailyRecordValue(자식) -> DailyRecord(부모) 삭제
         var dailyRecords = dailyRecordRepository.findByExperimentId(experimentId);
         for (var dr : dailyRecords) {
             dailyRecordValueRepository.deleteByDailyRecord_Id(dr.getId());
