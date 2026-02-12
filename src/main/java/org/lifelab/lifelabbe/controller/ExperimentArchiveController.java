@@ -3,6 +3,8 @@ package org.lifelab.lifelabbe.controller;
 import lombok.RequiredArgsConstructor;
 import org.lifelab.lifelabbe.common.ApiResponse;
 import org.lifelab.lifelabbe.service.ExperimentArchiveService;
+import org.lifelab.lifelabbe.service.ExperimentArchiveAttendanceService;
+
 import org.lifelab.lifelabbe.service.ExperimentArchiveSuccessService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -18,7 +20,7 @@ public class ExperimentArchiveController {
 
     private final ExperimentArchiveService experimentArchiveService;
     private final ExperimentArchiveSuccessService experimentArchiveSuccessService;
-
+    private final ExperimentArchiveAttendanceService experimentArchiveAttendanceService;
     //실험 내역(아카이브) 리스트 조회
     @GetMapping("/archive")
     public ResponseEntity<ApiResponse<?>> archive(Authentication authentication) {
@@ -40,6 +42,21 @@ public class ExperimentArchiveController {
                 ApiResponse.success(
                         200,
                         experimentArchiveSuccessService.getSuccessRate(userId, experimentId)
+                )
+        );
+    }
+    //특정 실험 출석률 조회 (스펙: 기록 수행률)
+    @GetMapping("/{experimentId}/attendance")
+    public ResponseEntity<ApiResponse<?>> attendanceRate(
+            Authentication authentication,
+            @PathVariable Long experimentId
+    ) {
+        Long userId = Long.valueOf((String) authentication.getPrincipal());
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        200,
+                        experimentArchiveAttendanceService.getAttendanceRate(userId, experimentId)
                 )
         );
     }
