@@ -36,7 +36,9 @@ public class DailyRecordService {
         Experiment experiment = experimentRepository
                 .findByIdAndUserId(experimentId, userId)
                 .orElseThrow(() -> new GlobalException(ErrorCode.EXP_404));
-
+        if (req == null || req.values() == null || req.values().isEmpty()) { // ✅ 수정
+            throw new GlobalException(ErrorCode.INVALID_PARAMETER);          // ✅ 수정
+        }
         // 오늘 기록 이미 존재하면 409
         if (dailyRecordRepository.existsByExperimentIdAndRecordDate(experimentId, today)) {
             throw new GlobalException(ErrorCode.REC_409);
@@ -75,7 +77,7 @@ public class DailyRecordService {
 
             // key가 이 실험의 preState 목록에 포함되어야 함
             if (!allowedSet.contains(key)) {
-                throw new GlobalException(ErrorCode.INVALID_PARAMETER);
+                throw new GlobalException(ErrorCode.PRE_STATE_ITEMS_MISMATCH);
             }
 
             // 중복 제출 방지
@@ -84,9 +86,9 @@ public class DailyRecordService {
             }
         }
 
-        //전부 체크 필수 (요청 key 집합 == allowedSet)
+        // 전부 체크 필수 (요청 key 집합 == allowedSet)
         if (!seen.equals(allowedSet)) {
-            throw new GlobalException(ErrorCode.INVALID_PARAMETER);
+            throw new GlobalException(ErrorCode.PRE_STATE_ITEMS_MISMATCH);
         }
 
         // DailyRecord 저장

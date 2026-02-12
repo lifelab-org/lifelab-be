@@ -78,6 +78,15 @@ public class ExperimentController {
         experimentService.deleteExperiment(userId, experimentId);
         return ResponseEntity.ok(ApiResponse.success(200, "삭제 완료"));
     }
-
+    @GetMapping("/{experimentId}/record-items")
+    public ResponseEntity<ApiResponse<?>> getCreateRecordItems(
+            Authentication authentication,
+            @PathVariable Long experimentId
+    ) {
+        Long userId = Long.valueOf((String) authentication.getPrincipal());
+        return ResponseEntity.ok(
+                ApiResponse.success(200, experimentService.getCreateRecordItems(userId, experimentId))
+        );
+    }
 
 }
