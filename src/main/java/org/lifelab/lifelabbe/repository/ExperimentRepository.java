@@ -23,7 +23,11 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
             Long userId,
             ExperimentStatus status
     );
-
+    //아카이브: COMPLETED만 (최신 종료일 순)
+    List<Experiment> findByUserIdAndStatusOrderByEndDateDesc(
+            Long userId,
+            ExperimentStatus status
+    );
     // 날짜 기반 조회 - 홈2
     // startDate <= today AND resultChecked=false
     List<Experiment> findByUserIdAndStartDateLessThanEqualAndResultCheckedFalseOrderByEndDateAsc(

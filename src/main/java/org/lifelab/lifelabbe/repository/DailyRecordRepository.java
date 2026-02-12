@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface DailyRecordRepository extends JpaRepository<DailyRecord, Long> {
     boolean existsByExperimentIdAndRecordDate(Long experimentId, LocalDate recordDate);
+    boolean existsByExperimentId(Long experimentId);
 
     List<DailyRecord> findByExperimentId(Long experimentId);
 
