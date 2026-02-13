@@ -45,7 +45,7 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
 
     // 상태 자동 업데이트
 
-    // 1) ONGOING -> COMPLETED (endDate < today)
+    // 1) ONGOING -> COMPLETED (resultChecked=true)
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update Experiment e
@@ -53,7 +53,7 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
          where e.status = org.lifelab.lifelabbe.domain.ExperimentStatus.ONGOING
            and e.resultChecked = true
     """)
-    int updateOngoingToCompleted(@Param("today") LocalDate today);
+    int updateOngoingToCompleted();
 
     // 2) UPCOMING -> ONGOING (startDate <= today <= endDate)
     @Modifying(clearAutomatically = true, flushAutomatically = true)

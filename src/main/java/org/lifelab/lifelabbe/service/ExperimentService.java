@@ -35,7 +35,7 @@ public class ExperimentService {
     @Transactional
     public void syncStatuses(LocalDate today) {
         int completed =
-                experimentRepository.updateOngoingToCompleted(today);
+                experimentRepository.updateOngoingToCompleted();
 
         int ongoing =
                 experimentRepository.updateUpcomingToOngoing(today);
