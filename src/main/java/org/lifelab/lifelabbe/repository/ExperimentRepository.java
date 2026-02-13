@@ -51,7 +51,7 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
         update Experiment e
            set e.status = org.lifelab.lifelabbe.domain.ExperimentStatus.COMPLETED
          where e.status = org.lifelab.lifelabbe.domain.ExperimentStatus.ONGOING
-           and (e.endDate < :today or e.resultChecked = true)
+           and e.resultChecked = true
     """)
     int updateOngoingToCompleted(@Param("today") LocalDate today);
 
