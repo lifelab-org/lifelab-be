@@ -26,7 +26,7 @@ public class ExperimentArchiveService {
 
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         experimentRepository.updateUpcomingToOngoing(today);
-        experimentRepository.updateOngoingToCompleted(today);
+        experimentRepository.updateOngoingToCompleted();
 
         List<Experiment> completed =
                 experimentRepository.findByUserIdAndStatusOrderByEndDateDesc(userId, ExperimentStatus.COMPLETED);

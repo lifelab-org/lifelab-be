@@ -17,4 +17,6 @@ public interface DailyRecordRepository extends JpaRepository<DailyRecord, Long> 
 
     //성공/실패 일수 집계
     long countByExperiment_IdAndOutcome(Long experimentId, DailyOutcome outcome);
+    //출석률(기록한 일수)
+    long countByExperimentId(Long experimentId);
 }

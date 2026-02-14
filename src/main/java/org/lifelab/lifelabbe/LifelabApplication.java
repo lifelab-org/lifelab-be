@@ -6,7 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class LifelabApplication {
+public class
+
+LifelabApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(LifelabApplication.class, args);
 	}
