@@ -32,7 +32,7 @@ public class ExperimentArchiveSuccessService {
 
         int successRate = (total == 0)
                 ? 0
-                : (int) Math.round((successDays * 100.0) / total);
+                : (int) ((successDays * 100.0) / total);
 
         //기록이 하나라도 있으면 true, 없으면 false
         boolean isSuccess =
