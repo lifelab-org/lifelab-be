@@ -1,6 +1,7 @@
 package org.lifelab.lifelabbe.repository;
 
 import org.lifelab.lifelabbe.domain.DailyRecordValue;
+import org.lifelab.lifelabbe.repository.projection.DailyValueRow;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,4 +44,15 @@ public interface DailyRecordValueRepository extends JpaRepository<DailyRecordVal
             @Param("from") LocalDate from,
             @Param("to") LocalDate to
     );
+
+    @Query("""
+    select
+        v.recordItemKey as recordItemKey,
+        dr.recordDate as recordDate,
+        v.value as value
+    from DailyRecordValue v
+    join v.dailyRecord dr
+    where dr.experiment.id = :experimentId
+""")
+    List<DailyValueRow> findAllDailyValuesByExperimentId(@Param("experimentId") Long experimentId);
 }
