@@ -156,28 +156,28 @@ public class ExperimentService {
                         })
                         .toList();
 
-        //D-DAY(0) 최상단
-        //dDay null(=preState 미기록 & D-DAY 아님) 최하단  ← (현재는 dDay null이 안 나옴: outDDay=rawDDay라서)
-        //나머지는 "급한 순": 이미 지난 것(D+N) 먼저, 그리고 남은 것(D-N) 적은 순
         return mapped.stream()
                 .sorted((a, b) -> {
-                    boolean aNull = (a.dDay() == null);
-                    boolean bNull = (b.dDay() == null);
-                    if (aNull != bNull) return aNull ? 1 : -1;
+
+                    int ap = priority(a);
+                    int bp = priority(b);
+
+                    if (ap != bp) return Integer.compare(ap, bp);
 
                     int ad = a.dDay();
                     int bd = b.dDay();
 
-                    boolean aDDay = (ad == 0);
-                    boolean bDDay = (bd == 0);
-                    if (aDDay != bDDay) return aDDay ? -1 : 1;
+                    // D-N 그룹 → 남은 것 적은 순
+                    if (ap == 3) {
+                        return Integer.compare(ad, bd);
+                    }
 
-                    boolean aOver = (ad < 0); // D+N
-                    boolean bOver = (bd < 0);
-                    if (aOver != bOver) return aOver ? -1 : 1;
+                    // D+N 그룹 → 최근 종료 위
+                    if (ap == 4) {
+                        return Integer.compare(Math.abs(ad), Math.abs(bd));
+                    }
 
-                    if (aOver) return Integer.compare(Math.abs(ad), Math.abs(bd)); // D+1이 위
-                    return Integer.compare(ad, bd); // D-1이 위
+                    return 0;
                 })
                 .toList();
     }
@@ -352,6 +352,23 @@ public class ExperimentService {
         //Experiment 삭제
         experimentRepository.delete(experiment);
     }
+    private int priority(HomeOngoingExperimentResponse r) {
+
+        // 전상태 미기록
+        if (!r.preStateRecorded()) return 1;
+
+        int d = r.dDay();
+
+        // 2D-DAY
+        if (d == 0) return 2;
+
+        // D-N
+        if (d > 0) return 3;
+
+        // D+N
+        return 4;
+    }
 
 
 }
+
