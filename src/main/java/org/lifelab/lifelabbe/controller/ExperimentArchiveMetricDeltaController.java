@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 public class ExperimentArchiveMetricDeltaController {
 
     private final ExperimentArchiveMetricDeltaService metricDeltaService;
+    private final ExperimentArchiveMetricDeltaService service;
 
     @GetMapping("/{experimentId}/archive/metrics")
     public ResponseEntity<ApiResponse<?>> getMetricDeltas(
@@ -26,5 +27,13 @@ public class ExperimentArchiveMetricDeltaController {
                 metricDeltaService.getMetricDeltas(userId, experimentId);
 
         return ResponseEntity.ok(ApiResponse.success(200, res));
+    }
+    @GetMapping("/{experimentId}/archive/metrics/top")
+    public ResponseEntity<ApiResponse<?>> topMetricDelta(
+            Authentication authentication,
+            @PathVariable Long experimentId
+    ) {
+        Long userId = Long.valueOf((String) authentication.getPrincipal());
+        return ResponseEntity.ok(ApiResponse.success(200, service.getTopMetricDelta(userId, experimentId)));
     }
 }
