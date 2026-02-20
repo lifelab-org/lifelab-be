@@ -4,7 +4,7 @@ import org.lifelab.lifelabbe.domain.DailyRecordValue;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
+import java.util.List;
 import java.time.LocalDate;
 import java.util.Optional;
 public interface DailyRecordValueRepository extends JpaRepository<DailyRecordValue, Long> {
@@ -24,5 +24,23 @@ public interface DailyRecordValueRepository extends JpaRepository<DailyRecordVal
             @Param("recordItemKey") String recordItemKey,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
+    );
+
+    @Query("""
+        select
+            v.recordItemKey,
+            dr.recordDate,
+            v.value
+        from DailyRecordValue v
+        join v.dailyRecord dr
+        where dr.experiment.id = :experimentId
+          and dr.recordDate between :from and :to
+        order by v.recordItemKey asc, dr.recordDate asc
+    """)
+    //그래프(라인차트)용: "기록된 것만" 날짜별 값 리스트 조회
+    List<Object[]> findGraphRowsRaw(
+            @Param("experimentId") Long experimentId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to
     );
 }
