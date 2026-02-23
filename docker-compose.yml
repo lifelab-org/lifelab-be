@@ -14,6 +14,12 @@ services:
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql-dev-data:/var/lib/mysql
+  ai:
+    build: ./ai
+    container_name: lifelab-ai
+    ports:
+      - "8000:8000"
+    command: uvicorn app.api:app --host 0.0.0.0 --port 8000
 
 volumes:
   mysql-dev-data:

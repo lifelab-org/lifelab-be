@@ -1,7 +1,9 @@
 spring:
   application:
     name: lifelab-be
-
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
   datasource:
     url: jdbc:mysql://127.0.0.1:3307/lifelab?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=utf8&allowPublicKeyRetrieval=true
     username: app
@@ -10,7 +12,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # Flyway가 스키마 관리하므로 validate 권장 (개발 중엔 update도 가능)
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
@@ -20,7 +22,7 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: true   # 기존 DB/볼륨이 있을 때 시작 편하게 해줌(개발용)
+    baseline-on-migrate: true
 
 server:
   port: 8080
@@ -38,3 +40,5 @@ app:
     issuer: "lifelab"
     access-token-exp-minutes: 60
     cookie-name: "access_token"
+ai:
+  base-url: ${AI_BASE_URL:http://localhost:8000}

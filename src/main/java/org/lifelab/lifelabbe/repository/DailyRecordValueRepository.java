@@ -55,4 +55,20 @@ public interface DailyRecordValueRepository extends JpaRepository<DailyRecordVal
     where dr.experiment.id = :experimentId
 """)
     List<DailyValueRow> findAllDailyValuesByExperimentId(@Param("experimentId") Long experimentId);
+
+    //오늘/어제 한줄요약용(하루치 값 조회) 추가
+    @Query("""
+        select
+            v.recordItemKey as recordItemKey,
+            dr.recordDate as recordDate,
+            v.value as value
+        from DailyRecordValue v
+        join v.dailyRecord dr
+        where dr.experiment.id = :experimentId
+          and dr.recordDate = :recordDate
+    """)
+    List<DailyValueRow> findDailyValuesByExperimentIdAndRecordDate(
+            @Param("experimentId") Long experimentId,
+            @Param("recordDate") LocalDate recordDate
+    );
 }

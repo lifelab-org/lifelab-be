@@ -19,4 +19,5 @@ public interface DailyRecordRepository extends JpaRepository<DailyRecord, Long> 
     long countByExperiment_IdAndOutcome(Long experimentId, DailyOutcome outcome);
     //출석률(기록한 일수)
     long countByExperimentId(Long experimentId);
+    long countByExperiment_IdAndRecordDateBetween(Long experimentId, LocalDate start, LocalDate end);
 }
