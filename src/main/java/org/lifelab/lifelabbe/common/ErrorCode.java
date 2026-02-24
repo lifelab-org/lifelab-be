@@ -9,7 +9,7 @@ public enum ErrorCode {
     DUPLICATE_RECORD_ITEM(400, "DUPLICATE_RECORD_ITEM", "recordItems.name이 중복되었습니다."),
     TOO_MANY_RECORD_ITEMS(400, "TOO_MANY_RECORD_ITEMS", "recordItems는 최대 10개까지 가능합니다."),
     PRE_STATE_ITEMS_MISMATCH(400, "PRE_STATE_ITEMS_MISMATCH", "실험의 기록 항목과 요청 항목이 일치하지 않습니다."),
-
+    AI_400(400, "AI_400", "요약을 생성하기에 충분한 기록이 없습니다."),
     /* 401 */
     AUTH_401(401, "AUTH_401", "인증 토큰이 유효하지 않습니다."),
 
@@ -21,6 +21,8 @@ public enum ErrorCode {
     PRE_STATE_404(404, "PRE_STATE_404", "실험 전 상태가 존재하지 않습니다."),
     ARCHIVE_404(404, "ARCHIVE_404", "완료된 실험 내역이 없습니다."),
     RECORD_404(404, "RECORD_404", "해당 지표에 대한 기록이 존재하지 않습니다."),
+    AI_COMMENT_404(404, "AI_COMMENT_404", "AI 코멘트가 아직 생성되지 않았습니다."),
+
     /*  409  */
     REC_409(409, "REC_409", "이미 오늘의 기록이 존재합니다."),
     PRE_STATE_409(409, "PRE_STATE_409", "이미 실험 전 상태가 존재합니다."),
