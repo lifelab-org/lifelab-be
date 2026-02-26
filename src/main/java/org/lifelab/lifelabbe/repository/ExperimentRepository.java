@@ -43,8 +43,19 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
 
     Optional<Experiment> findByIdAndUserId(Long id, Long userId);
 
-    // 상태 자동 업데이트
+    @Query("""
+    SELECT e FROM Experiment e
+    WHERE e.userId = :userId
+      AND e.startDate <= :endDate
+      AND e.endDate >= :startDate
+""")
+    List<Experiment> findByUserIdAndDateOverlap(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 
+    // 상태 자동 업데이트
     // 1) ONGOING -> COMPLETED (resultChecked=true)
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
