@@ -17,7 +17,7 @@ public class AiDailySummaryController {
     private final AiDailySummaryService aiDailySummaryService;
 
      //한줄요약
-    @GetMapping("/{experimentId}/ai/daily-summary")
+    @GetMapping("/{experimentId}/daily-summary")
     public ResponseEntity<ApiResponse<?>> dailySummary(
             Authentication authentication,
             @PathVariable Long experimentId,

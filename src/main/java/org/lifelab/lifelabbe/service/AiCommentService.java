@@ -24,7 +24,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiCommentService {
 
-    private static final int MIN_DAILY_RECORDS_TO_GENERATE = 3;
+    // 하루만 있어도 생성 가능
+    private static final int MIN_DAILY_RECORDS_TO_GENERATE = 1;
 
     private final ExperimentRepository experimentRepository;
     private final DailyRecordRepository dailyRecordRepository;
@@ -37,7 +38,6 @@ public class AiCommentService {
         return generate(userId, experimentId);
     }
 
-    //매번 FastAPI 호출해서 즉시 생성(저장 없음)
     @Transactional(readOnly = true)
     public AiCommentResponse generateComment(Long userId, Long experimentId) {
         return generate(userId, experimentId);
@@ -51,54 +51,40 @@ public class AiCommentService {
 
         long dailyCount = dailyRecordRepository.countByExperimentId(experimentId);
         if (dailyCount < MIN_DAILY_RECORDS_TO_GENERATE) {
+            // 기록이 아예 없을 때만 막기
             throw new GlobalException(ErrorCode.AI_400);
         }
 
-        // 실험 기간
         LocalDate startDate = exp.getStartDate();
         LocalDate endDate = exp.getEndDate();
         if (startDate == null || endDate == null) {
             throw new GlobalException(ErrorCode.INVALID_PARAMETER);
         }
 
-        // 출석률 = 기록일수 / 전체기간일수 * 100
         long totalDays = ChronoUnit.DAYS.between(startDate, endDate) + 1;
         if (totalDays <= 0) {
             throw new GlobalException(ErrorCode.INVALID_PARAMETER);
         }
+
         float attendanceRate = (float) dailyCount * 100.0f / (float) totalDays;
+        float safeAttendanceRate = Math.max(0f, attendanceRate);
 
         String startDateStr = startDate.toString();
         String endDateStr = endDate.toString();
 
-        //pre 목록
+        // pre-state 목록
         List<ExperimentPreStateValue> pres = preStateValueRepository.findByExperimentId(experimentId);
         if (pres.isEmpty()) {
             throw new GlobalException(ErrorCode.PRE_STATE_404);
         }
 
-        //TopMetric 계산
-        TopMetricResult top = pres.stream()
-                .map(p -> {
-                    String key = p.getRecordItemKey();
-                    double before = p.getValue();
-                    double after = dailyRecordValueRepository
-                            .findAvgValue(experimentId, key, startDate, endDate)
-                            .orElse(before);
-                    double absDelta = Math.abs(after - before);
-                    return new TopMetricResult(key, before, after, absDelta);
-                })
-                .max(Comparator.comparingDouble(TopMetricResult::absDelta))
-                .orElseThrow(() -> new GlobalException(ErrorCode.AI_400));
-
-        //FastAPI 요청 DTO
-        String experimentName = safeExperimentName(exp);
-
-        // metrics 구성 (polarity 필수 → 임시 규칙 적용)
+        // metrics: (pre-state -> 기록한 기간 평균) 비교
         List<MetricChangeDto> metrics = pres.stream()
                 .map(p -> {
                     String key = p.getRecordItemKey();
-                    float before = (float) p.getValue();
+                    float before = safeFloat(p.getValue());
+
+                    // 기록이 하나도 없으면 Optional empty -> before로 fallback
                     float after = dailyRecordValueRepository
                             .findAvgValue(experimentId, key, startDate, endDate)
                             .map(Double::floatValue)
@@ -108,14 +94,30 @@ public class AiCommentService {
                             key,
                             before,
                             after,
-                            inferPolarity(key),
+                            inferPolarity(key), // FastAPI 스키마 때문에 유지 (문장 생성 로직에서 무시해도 됨)
                             null
                     );
                 })
                 .toList();
 
+        // TopMetric: absDelta 최대인 key
+        TopMetricResult top = pres.stream()
+                .map(p -> {
+                    String key = p.getRecordItemKey();
+                    double before = safeDouble(p.getValue());
+
+                    double after = dailyRecordValueRepository
+                            .findAvgValue(experimentId, key, startDate, endDate)
+                            .orElse(before);
+
+                    double absDelta = Math.abs(after - before);
+                    return new TopMetricResult(key, before, after, absDelta);
+                })
+                .max(Comparator.comparingDouble(TopMetricResult::absDelta))
+                .orElseThrow(() -> new GlobalException(ErrorCode.AI_400));
+
+        String experimentName = safeExperimentName(exp);
         String topChangedMetricKey = top.key();
-        float safeAttendanceRate = Math.max(0f, attendanceRate);
 
         AiCommentGenerateRequest req = new AiCommentGenerateRequest(
                 experimentName,
@@ -127,15 +129,29 @@ public class AiCommentService {
                 topChangedMetricKey
         );
 
-        // 저장 없이 호출 결과만 반환
         String generatedText = aiClient.generateComment(req);
 
         return new AiCommentResponse(experimentId, generatedText, true);
     }
 
+    private float safeFloat(Object v) {
+        try {
+            return ((Number) v).floatValue();
+        } catch (Exception e) {
+            return 0f;
+        }
+    }
+
+    private double safeDouble(Object v) {
+        try {
+            return ((Number) v).doubleValue();
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
     private String inferPolarity(String key) {
         if (key == null) return "HIGHER_IS_BETTER";
-        // 최소 동작용 임시 규칙
         var lowerIsBetter = java.util.Set.of("피로도", "불안", "스트레스", "통증", "졸림");
         if (lowerIsBetter.contains(key)) return "LOWER_IS_BETTER";
         return "HIGHER_IS_BETTER";

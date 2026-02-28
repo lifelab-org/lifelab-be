@@ -8,19 +8,16 @@ from joblib import dump, load
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import HistGradientBoostingClassifier
 
-
-# 모델 파일 경로
 MODEL_VERSION = "v6_neutral_only_up_down"
 MODEL_PATH = os.path.join(os.path.dirname(__file__), f"model_{MODEL_VERSION}.joblib")
 
 
-# 입력 데이터 구조
 @dataclass
 class MetricInput:
     key: str
     yesterday: float
     today: float
-    polarity: str
+    polarity: str  # 지금은 문장/방향 판단에는 사용하지 않음 (그대로 받아두기만)
 
 
 @dataclass
@@ -29,8 +26,6 @@ class PreStateInput:
     value: float
     polarity: str
 
-
-# 숫자 유틸
 
 def _mean(xs: List[float]) -> float:
     return sum(xs) / len(xs) if xs else 0.0
@@ -74,23 +69,26 @@ def _clean_text(s: str) -> str:
     return s.strip()
 
 
+def _iga(word: str) -> str:
+    if not word:
+        return "이"
+    last = word[-1]
+    code = ord(last)
+    if 0xAC00 <= code <= 0xD7A3:
+        jong = (code - 0xAC00) % 28
+        return "이" if jong != 0 else "가"
+    return "이"
 
-# 변화량 계산
 
-def _signed_good_delta(yesterday: float, today: float, polarity: str) -> float:
-    if polarity == "LOWER_IS_BETTER":
-        return yesterday - today
+def _raw_delta(yesterday: float, today: float) -> float:
     return today - yesterday
 
-
-
-# 특징 벡터 생성 
 
 def featurize(metrics: List[MetricInput]) -> List[List[float]]:
     if not metrics:
         return [[0.0] * 14]
 
-    deltas = [_signed_good_delta(m.yesterday, m.today, m.polarity) for m in metrics]
+    deltas = [_raw_delta(m.yesterday, m.today) for m in metrics]
     absd = [abs(d) for d in deltas]
     n = len(deltas)
 
@@ -100,7 +98,7 @@ def featurize(metrics: List[MetricInput]) -> List[List[float]]:
 
     rel = []
     for m in metrics:
-        d = _signed_good_delta(m.yesterday, m.today, m.polarity)
+        d = _raw_delta(m.yesterday, m.today)
         rel.append(_safe_div(d, abs(m.yesterday) + 1e-8))
 
     ds_sorted = sorted(deltas)
@@ -126,7 +124,6 @@ def featurize(metrics: List[MetricInput]) -> List[List[float]]:
     ]]
 
 
-# 모델 부트스트랩
 def _bootstrap_train_if_missing() -> None:
     if os.path.exists(MODEL_PATH):
         return
@@ -202,9 +199,15 @@ def _bootstrap_train_if_missing() -> None:
     dump(model, MODEL_PATH)
 
 
+_MODEL = None
+
+
 def load_model():
-    _bootstrap_train_if_missing()
-    return load(MODEL_PATH)
+    global _MODEL
+    if _MODEL is None:
+        _bootstrap_train_if_missing()
+        _MODEL = load(MODEL_PATH)
+    return _MODEL
 
 
 def predict_label(metrics: List[MetricInput]) -> int:
@@ -215,35 +218,38 @@ def predict_label(metrics: List[MetricInput]) -> int:
     return int(label)
 
 
+def _label_by_scale_rule(metrics: List[MetricInput]) -> int:
+    if not metrics:
+        return 1
 
-# '증가/감소/변화없음' 판단
+    abs_diffs = [abs(m.today - m.yesterday) for m in metrics]
+    max_abs = max(abs_diffs) if abs_diffs else 0.0
 
-def _direction(yesterday: float, today: float, eps: float = 1e-6) -> str:
-    diff = today - yesterday
-    if diff > eps:
-        return "높아졌어요"
-    if diff < -eps:
-        return "낮아졌어요"
-    return "변화 없어요"
+    if max_abs >= 2.0:
+        return 2
+    if max_abs >= 1.0:
+        return 1
+    return 0
 
-
-# 요약에 넣을 지표 선택
 
 def pick_up_down(metrics: List[MetricInput]) -> Tuple[Optional[str], Optional[str], bool]:
     if not metrics:
         return None, None, True
 
-    changes: List[Tuple[str, float]] = [(m.key, m.today - m.yesterday) for m in metrics]
-
     eps = 1e-6
-    changes2 = [(k, (0.0 if abs(d) < eps else d)) for (k, d) in changes]
 
-    all_same = all(abs(d) < eps for (_, d) in changes2)
+    
+    changes: List[Tuple[str, float]] = [
+        (m.key, _raw_delta(m.yesterday, m.today))
+        for m in metrics
+    ]
+
+    all_same = all(abs(d) < eps for (_, d) in changes)
     if all_same:
         return None, None, True
 
-    up = max(changes2, key=lambda x: x[1])
-    down = min(changes2, key=lambda x: x[1])
+    up = max(changes, key=lambda x: x[1])
+    down = min(changes, key=lambda x: x[1])
 
     up_key = up[0] if up[1] > eps else None
     down_key = down[0] if down[1] < -eps else None
@@ -251,14 +257,7 @@ def pick_up_down(metrics: List[MetricInput]) -> Tuple[Optional[str], Optional[st
     return up_key, down_key, False
 
 
-# 라벨 기반 중립 템플릿/강도 선택
 def _label_to_style(label: int) -> Tuple[int, List[str]]:
-    """
-    label: 0/1/2
-    - 0: 변동이 작다고 보는 쪽 -> 더 보수적으로(지표 1개만 언급)
-    - 1: 중간 -> 기본(지표 1~2개)
-    - 2: 변동이 크다고 보는 쪽 -> 2개 언급을 우선
-    """
     if label == 0:
         max_mentions = 1
         mains = [
@@ -282,7 +281,6 @@ def _label_to_style(label: int) -> Tuple[int, List[str]]:
         ]
     return max_mentions, mains
 
-#모델 라벨을 “문장 선택”에 반영
 
 def generate_one_liner(
     experiment_name: str,
@@ -293,34 +291,25 @@ def generate_one_liner(
 ) -> str:
     pre_states = pre_states or []
 
-    #오늘 기록이 없으면
     if not has_today_record:
-        if pre_states:
-            return _clean_text("오늘 기록이 없어요. 실험 전 상태 값은 저장되어 있어요.")
         return _clean_text("오늘 기록이 없어요.")
 
-    #오늘 기록은 있는데 metrics가 비었으면
     if not metrics:
-        if pre_states:
-            return _clean_text("비교할 지표가 없어요. 실험 전 상태 값은 저장되어 있어요.")
         return _clean_text("비교할 지표가 없어요.")
 
-    #up/down 추출
     up_key, down_key, all_same = pick_up_down(metrics)
     if all_same:
         return _clean_text("전반적으로 변화 없어요.")
 
-    #모델 라벨로 문장 스타일 결정
-    label = predict_label(metrics)
+    label = _label_by_scale_rule(metrics)
     max_mentions, main_candidates = _label_to_style(label)
 
     parts: List[str] = []
     if up_key:
-        parts.append(f"{up_key}가 높아졌어요.")
+        parts.append(f"{up_key}{_iga(up_key)} 높아졌어요.")
     if down_key:
-        parts.append(f"{down_key}가 낮아졌어요.")
+        parts.append(f"{down_key}{_iga(down_key)} 낮아졌어요.")
 
-    #label이 0(변동 작음)일 땐 1개만 언급
     parts = parts[:max_mentions]
 
     if not parts:
@@ -336,16 +325,9 @@ def generate_one_liner(
     ]
     s = rng.choice(templates).format(main=main, detail=detail)
 
-    if pre_states:
-        tail_candidates = [
-            " 실험 전 상태 값도 저장되어 있어요.",
-            " 실험 전 상태 값이 함께 저장되어 있어요.",
-        ]
-        s += rng.choice(tail_candidates)
-
     return _clean_text(s)
 
-# 기존 함수명 유지(호환성)
+
 def generate_summary(
     experiment_name: str,
     record_date: str,
@@ -361,20 +343,13 @@ def generate_summary(
         pre_states=pre_states
     )
 
-# 로컬 테스트
+
 if __name__ == "__main__":
     sample = [
-        MetricInput("피로도", 3, 1, "LOWER_IS_BETTER"),
-        MetricInput("집중도", 4, 5, "HIGHER_IS_BETTER"),
-        MetricInput("수면만족도", 6, 6, "HIGHER_IS_BETTER"),
-        MetricInput("카페 섭취 여부", 3, 4, "LOWER_IS_BETTER"),
+        MetricInput("피로도", 3, 7, "LOWER_IS_BETTER"),        # 값 증가 -> "피로도가 높아졌어요."
+        MetricInput("집중력", 5, 1, "HIGHER_IS_BETTER"),       # 값 감소 -> "집중력이 낮아졌어요."
+        MetricInput("수면만족도", 3, 3, "HIGHER_IS_BETTER"),   # 변화 없음
+        MetricInput("밤", 3, 7, "HIGHER_IS_BETTER"),          # "높아졌어요."
     ]
 
-    pre = [
-        PreStateInput("피로도", 2.0, "LOWER_IS_BETTER"),
-        PreStateInput("집중도", 4.0, "HIGHER_IS_BETTER"),
-    ]
-
-    print(generate_one_liner( "실험", "2026-02-24", sample, has_today_record=True, pre_states=pre))
-    print(generate_one_liner(" 실험", "2026-02-24", [], has_today_record=True, pre_states=pre))
-    print(generate_one_liner(" 실험", "2026-02-24", [], has_today_record=False, pre_states=pre))
+    print(generate_one_liner("실험", "2026-02-28", sample, has_today_record=True))
