@@ -56,7 +56,7 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
     );
 
     // 상태 자동 업데이트
-    // 1) ONGOING -> COMPLETED (resultChecked=true)
+    // ONGOING -> COMPLETED (resultChecked=true)
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update Experiment e
@@ -66,7 +66,7 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
     """)
     int updateOngoingToCompleted();
 
-    // 2) UPCOMING -> ONGOING (startDate <= today <= endDate)
+    // UPCOMING -> ONGOING (startDate <= today <= endDate)
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update Experiment e

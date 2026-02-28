@@ -42,15 +42,14 @@ public class AiDailySummaryService {
         LocalDate today = (dateOrNull != null)
                 ? dateOrNull
                 : LocalDate.now(ZoneId.of("Asia/Seoul"));
-        LocalDate yesterday = today.minusDays(1);
 
-        //실험 전 상태 값 조회
+        // 실험 전 상태 값 조회
         List<PreStateDto> preStates = toPreStates(preStateValueRepository.findByExperimentId(experimentId));
 
         // 오늘 기록 존재 여부
         boolean hasTodayRecord = dailyRecordRepository.existsByExperimentIdAndRecordDate(experimentId, today);
 
-        // 오늘 기록이 없더라도 예외/조기반환 없이 AI 호출
+        // 오늘 기록이 없더라도 예외/조기반환 없이 호출
         if (!hasTodayRecord) {
             AiDailySummaryGenerateRequest req = new AiDailySummaryGenerateRequest(
                     safeExperimentName(exp),
@@ -73,29 +72,54 @@ public class AiDailySummaryService {
             );
         }
 
-        // 오늘/어제 값 조회
+        // 오늘 값 조회
         List<DailyValueRow> todayRows =
                 dailyRecordValueRepository.findDailyValuesByExperimentIdAndRecordDate(experimentId, today);
 
-        List<DailyValueRow> yesterdayRows =
-                dailyRecordValueRepository.findDailyValuesByExperimentIdAndRecordDate(experimentId, yesterday);
-
         Map<String, Float> todayMap = toMap(todayRows);
-        Map<String, Float> yesterdayMap = toMap(yesterdayRows);
 
-        //MetricDelta 생성
+        // 비교 기준일: today 이전 가장 최근 기록일
+        Optional<LocalDate> baselineDateOpt =
+                dailyRecordRepository.findLatestRecordDateBefore(experimentId, today);
+
+        Map<String, Float> baselineMap = new LinkedHashMap<>();
+        String baselineType;
+        LocalDate baselineDate = null;
+
+        if (baselineDateOpt.isPresent()) {
+            baselineDate = baselineDateOpt.get();
+            baselineType = "PREVIOUS_RECORD";
+
+            List<DailyValueRow> baselineRows =
+                    dailyRecordValueRepository.findDailyValuesByExperimentIdAndRecordDate(experimentId, baselineDate);
+
+            baselineMap = toMap(baselineRows);
+
+            log.info("[AI DailySummary] baseline=PREVIOUS_RECORD. expId={}, today={}, baselineDate={}, baselineRowsCount={}",
+                    experimentId,
+                    today,
+                    baselineDate,
+                    (baselineRows == null ? 0 : baselineRows.size()));
+        } else {
+            // 오늘이 첫 기록(이전 기록 없음) -> pre-state로 비교
+            baselineType = "PRE_STATE";
+            baselineMap = toPreStateMap(preStateValueRepository.findByExperimentId(experimentId));
+
+            log.info("[AI DailySummary] baseline=PRE_STATE. expId={}, today={}, preStateCount={}",
+                    experimentId,
+                    today,
+                    baselineMap.size());
+        }
+
+        // MetricDelta 생성: today에 있는 key 중 baseline에도 있는 것만 비교
         List<MetricDeltaDto> metrics = new ArrayList<>();
 
         for (String key : todayMap.keySet()) {
             if (key == null) continue;
+            if (!baselineMap.containsKey(key)) continue;
 
             float t = todayMap.getOrDefault(key, 0f);
-
-            if (!yesterdayMap.containsKey(key)) {
-                continue;
-            }
-
-            float y = yesterdayMap.get(key);
+            float y = baselineMap.getOrDefault(key, 0f);
 
             metrics.add(new MetricDeltaDto(
                     key,
@@ -106,7 +130,6 @@ public class AiDailySummaryService {
             ));
         }
 
-
         AiDailySummaryGenerateRequest req = new AiDailySummaryGenerateRequest(
                 safeExperimentName(exp),
                 today.toString(),
@@ -115,13 +138,14 @@ public class AiDailySummaryService {
                 preStates
         );
 
-        log.info("[AI DailySummary] sending. expId={}, date={}, hasTodayRecord=true, metricsCount={}, preStatesCount={}, todayRowsCount={}, yesterdayRowsCount={}",
+        log.info("[AI DailySummary] sending. expId={}, date={}, hasTodayRecord=true, baselineType={}, baselineDate={}, metricsCount={}, preStatesCount={}, todayRowsCount={}",
                 experimentId,
                 today,
+                baselineType,
+                (baselineDate == null ? "-" : baselineDate.toString()),
                 metrics.size(),
                 preStates.size(),
-                (todayRows == null ? 0 : todayRows.size()),
-                (yesterdayRows == null ? 0 : yesterdayRows.size())
+                (todayRows == null ? 0 : todayRows.size())
         );
 
         var aiRes = aiClient.generate(req);
@@ -137,11 +161,42 @@ public class AiDailySummaryService {
     private Map<String, Float> toMap(List<DailyValueRow> rows) {
         Map<String, Float> map = new LinkedHashMap<>();
         if (rows == null) return map;
+
         for (DailyValueRow r : rows) {
             if (r == null) continue;
             if (r.getRecordItemKey() == null) continue;
-            float v = (float) r.getValue();
+
+            float v;
+            try {
+                v = ((Number) r.getValue()).floatValue();
+            } catch (Exception e) {
+                v = 0f;
+            }
+
             map.put(r.getRecordItemKey(), v);
+        }
+        return map;
+    }
+
+    // 비교용: pre-state를 Map으로 변환
+    private Map<String, Float> toPreStateMap(List<ExperimentPreStateValue> values) {
+        Map<String, Float> map = new LinkedHashMap<>();
+        if (values == null || values.isEmpty()) return map;
+
+        for (ExperimentPreStateValue v : values) {
+            if (v == null) continue;
+
+            String key = v.getRecordItemKey();
+            if (key == null) continue;
+
+            float val;
+            try {
+                val = ((Number) v.getValue()).floatValue();
+            } catch (Exception e) {
+                val = 0f;
+            }
+
+            map.put(key, val);
         }
         return map;
     }
@@ -152,15 +207,14 @@ public class AiDailySummaryService {
         List<PreStateDto> list = new ArrayList<>();
         for (ExperimentPreStateValue v : values) {
             if (v == null) continue;
+
             String key = v.getRecordItemKey();
             if (key == null) continue;
 
             float val;
             try {
-
                 val = ((Number) v.getValue()).floatValue();
             } catch (Exception e) {
-                //value가 Number가 아니면 0으로 fallback
                 val = 0f;
             }
 

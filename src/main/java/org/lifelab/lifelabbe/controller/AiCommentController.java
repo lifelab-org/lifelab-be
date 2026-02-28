@@ -15,7 +15,7 @@ public class AiCommentController {
 
     private final AiCommentService aiCommentService;
 
-    @GetMapping("/{experimentId}/ai-comment")
+    @GetMapping("/{experimentId}/comment")
     public ResponseEntity<ApiResponse<?>> get(
             Authentication authentication,
             @PathVariable Long experimentId

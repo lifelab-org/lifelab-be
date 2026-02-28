@@ -11,8 +11,6 @@ import sys
 import os
 import math
 
-# ML 모델 의존성: 있으면 사용, 없으면 폴백
-
 try:
     from joblib import dump, load
     from sklearn.calibration import CalibratedClassifierCV
@@ -20,7 +18,6 @@ try:
     SKLEARN_AVAILABLE = True
 except Exception:
     SKLEARN_AVAILABLE = False
-
 
 app = FastAPI()
 
@@ -44,7 +41,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-# 모델 / 입력 스키마
 Polarity = Literal["HIGHER_IS_BETTER", "LOWER_IS_BETTER"]
 
 
@@ -52,7 +48,7 @@ class MetricChange(BaseModel):
     key: str = Field(..., description="지표 이름(예: 피로도, 소화 상태)")
     before: float
     after: float
-    polarity: Polarity = Field(..., description="높을수록 좋은지/낮을수록 좋은지")
+    polarity: Polarity = Field(..., description="유지(호환용). 문장 판단에는 사용하지 않음")
     unit: Optional[str] = Field(default=None, description="단위(선택)")
 
 
@@ -61,10 +57,11 @@ class CommentReq(BaseModel):
     startDate: Optional[date] = None
     endDate: Optional[date] = None
 
-    # 100 초과 허용(표시도 그대로 가능)
     attendanceRate: float = Field(..., ge=0, description="출석률(0 이상, 100 초과도 허용)")
     successRate: Optional[float] = Field(default=None, ge=0, description="성공률(0 이상, 100 초과도 허용)")
 
+    # 오늘 기록이 하나라도 있으면 Spring에서 metrics를 만들어 보내는 구조
+    # 오늘 기록이 아예 없을 때만 metrics=[]
     metrics: List[MetricChange] = Field(default_factory=list)
     topChangedMetricKey: Optional[str] = None
 
@@ -73,32 +70,20 @@ class AiCommentGenerateResponse(BaseModel):
     comment: str
 
 
-
-# ML 모델 파일 경로
-
 MODEL_VERSION = "v1_comment_action_picker"
 MODEL_PATH = os.path.join(os.path.dirname(__file__), f"model_{MODEL_VERSION}.joblib")
 
+
 def _cap_percent(x: float) -> float:
-    """톤/분기 판단용: 0~100으로 캡"""
     if x < 0:
         return 0.0
     return min(x, 100.0)
 
 
 def _att_floor_int(x: float) -> int:
-    
     if x <= 0:
         return 0
     return int(math.floor(x))
-
-
-def _is_improved(before: float, after: float, polarity: Polarity) -> Optional[bool]:
-    if after == before:
-        return None
-    if polarity == "HIGHER_IS_BETTER":
-        return after > before
-    return after < before
 
 
 def _fmt_delta(before: float, after: float) -> str:
@@ -118,7 +103,13 @@ def _attendance_tone_short(att: float) -> str:
     return "기록이 적어서 해석이 조심스러워요"
 
 
-def _utility_score(before: float, after: float, polarity: str) -> float:
+def _direction(before: float, after: float) -> Optional[str]:
+    if after == before:
+        return None
+    return "UP" if after > before else "DOWN"
+
+
+def _utility_score(before: float, after: float) -> float:
     
     delta = after - before
     abs_delta = abs(delta)
@@ -127,10 +118,7 @@ def _utility_score(before: float, after: float, polarity: str) -> float:
     if after == before:
         direction_sign = 0.0
     else:
-        if polarity == "HIGHER_IS_BETTER":
-            direction_sign = 1.0 if delta > 0 else -1.0
-        else:
-            direction_sign = 1.0 if delta < 0 else -1.0
+        direction_sign = 1.0 if delta > 0 else -1.0
 
     magnitude = (0.6 * rel) + (0.4 * abs_delta)
     return direction_sign * magnitude
@@ -153,6 +141,7 @@ def _success_phrase(success_rate: Optional[float]) -> str:
 
 
 def _change_verb(before: float, after: float) -> str:
+    # 값이 커지면 UP, 작아지면 DOWN
     if after == before:
         return random.choice(["변화는 없었어요", "그대로였어요", "크게 달라지진 않았어요"])
     if after > before:
@@ -194,10 +183,8 @@ def _safe_div(a: float, b: float, eps: float = 1e-8) -> float:
     return a / b
 
 
-def _signed_good_delta(before: float, after: float, polarity: str) -> float:
-    # "좋은 방향"이 +가 되게 정규화 (모델 입력용)
-    if polarity == "LOWER_IS_BETTER":
-        return before - after
+def _signed_delta(before: float, after: float) -> float:
+   
     return after - before
 
 
@@ -205,17 +192,17 @@ def featurize(metrics: List[MetricChange]) -> List[List[float]]:
     if not metrics:
         return [[0.0] * 14]
 
-    deltas = [_signed_good_delta(m.before, m.after, m.polarity) for m in metrics]
+    deltas = [_signed_delta(m.before, m.after) for m in metrics]
     absd = [abs(d) for d in deltas]
     n = len(deltas)
 
-    improved_ratio = sum(1 for d in deltas if d > 0) / n
-    worsened_ratio = sum(1 for d in deltas if d < 0) / n
+    up_ratio = sum(1 for d in deltas if d > 0) / n
+    down_ratio = sum(1 for d in deltas if d < 0) / n
     near_zero_ratio = sum(1 for d in deltas if abs(d) < 1e-6) / n
 
     rel = []
     for m in metrics:
-        d = _signed_good_delta(m.before, m.after, m.polarity)
+        d = _signed_delta(m.before, m.after)
         rel.append(_safe_div(d, abs(m.before) + 1e-8))
 
     ds_sorted = sorted(deltas)
@@ -224,25 +211,24 @@ def featurize(metrics: List[MetricChange]) -> List[List[float]]:
     top_k_mean = _mean(ds_sorted[-k:])
 
     return [[
-        _mean(deltas),          
-        max(deltas),            
-        min(deltas),            
-        _median(deltas),        
-        _std(deltas),           
-        _mean(absd),            
-        max(absd),             
-        sum(deltas),            
-        float(improved_ratio),  
-        float(worsened_ratio),  
-        float(near_zero_ratio), 
-        _mean(rel),             
-        top_k_mean,             
-        bottom_k_mean,          
+        _mean(deltas),
+        max(deltas),
+        min(deltas),
+        _median(deltas),
+        _std(deltas),
+        _mean(absd),
+        max(absd),
+        sum(deltas),
+        float(up_ratio),
+        float(down_ratio),
+        float(near_zero_ratio),
+        _mean(rel),
+        top_k_mean,
+        bottom_k_mean,
     ]]
 
 
 def _bootstrap_train_if_missing() -> None:
-    
     if not SKLEARN_AVAILABLE:
         return
     if os.path.exists(MODEL_PATH):
@@ -265,8 +251,8 @@ def _bootstrap_train_if_missing() -> None:
             deltas.append(base * scale)
 
         absd = [abs(d) for d in deltas]
-        improved_ratio = sum(1 for d in deltas if d > 0) / n
-        worsened_ratio = sum(1 for d in deltas if d < 0) / n
+        up_ratio = sum(1 for d in deltas if d > 0) / n
+        down_ratio = sum(1 for d in deltas if d < 0) / n
         near_zero_ratio = sum(1 for d in deltas if abs(d) < 0.05) / n
 
         ds_sorted = sorted(deltas)
@@ -283,8 +269,8 @@ def _bootstrap_train_if_missing() -> None:
             _mean(absd),
             max(absd),
             sum(deltas),
-            float(improved_ratio),
-            float(worsened_ratio),
+            float(up_ratio),
+            float(down_ratio),
             float(near_zero_ratio),
             0.0,
             top_k_mean,
@@ -292,7 +278,6 @@ def _bootstrap_train_if_missing() -> None:
         ]
         X.append(feat)
 
-        # 변화 작음/중간/큼
         score = (
             0.70 * feat[0] +
             0.12 * feat[12] +
@@ -301,11 +286,11 @@ def _bootstrap_train_if_missing() -> None:
             0.15 * feat[5]
         )
         if score > 0.60:
-            y.append(2)   # 변동 큼
+            y.append(2)
         elif score > -0.15:
-            y.append(1)   # 변동 중간
+            y.append(1)
         else:
-            y.append(0)   # 변동 작음
+            y.append(0)
 
     base = HistGradientBoostingClassifier(
         max_depth=3,
@@ -335,13 +320,11 @@ def predict_label(metrics: List[MetricChange]) -> Optional[int]:
     return int(label)
 
 
-# 모델 라벨 기반 우선 결정
-
 def _pick_next_action_by_label(
     label: Optional[int],
     att: float,
-    improved_cnt: int,
-    worsened_cnt: int,
+    up_cnt: int,
+    down_cnt: int,
     abs_delta_mean: float,
     abs_delta_max: float
 ) -> str:
@@ -359,10 +342,10 @@ def _pick_next_action_by_label(
             "이번엔 한두 가지만 바꿔서 영향이 큰 요인을 먼저 찾아보세요",
         ],
         "TUNE_VARIABLE": [
-            "좋았던 조건은 유지하고 변수 하나만 살짝 바꿔 최적점을 찾아보세요",
             "흐름이 보이니, 한 가지만 조절하면서 영향이 큰 요인을 좁혀보세요",
-            "잘 먹힌 조건은 유지하고, 딱 한 가지만 조절해서 효과를 더 키워보세요",
             "다음엔 한 변수만 조정해서 ‘가장 잘 맞는 지점’을 찾아보면 좋아요",
+            "이번엔 한 가지만 바꿔서 변화가 어떻게 움직이는지 확인해보세요",
+            "하나만 조정해서 변화 방향을 더 선명하게 만들어보면 좋아요",
         ],
         "EXTEND_PERIOD": [
             "변화가 작았다면 기간을 조금 늘리거나 지표를 더 구체적으로 바꿔보세요",
@@ -374,17 +357,16 @@ def _pick_next_action_by_label(
 
     a = _cap_percent(att)
 
-    # 모델 없을 때 폴백(기존 규칙 기반 점수)
     def score_actions() -> Dict[str, float]:
         scores = {"ROUTINE": 0.0, "FIX_CAUSE": 0.0, "TUNE_VARIABLE": 0.0, "EXTEND_PERIOD": 0.0}
         scores["ROUTINE"] += max(0, 70 - a) / 10.0
-        scores["FIX_CAUSE"] += max(0, worsened_cnt - improved_cnt) * 1.2
-        scores["TUNE_VARIABLE"] += improved_cnt * 1.0
+        scores["FIX_CAUSE"] += max(0, down_cnt - up_cnt) * 1.0
+        scores["TUNE_VARIABLE"] += up_cnt * 0.8
         low_change = 1.0 if abs_delta_mean < 0.5 and abs_delta_max < 1.0 else 0.0
         scores["EXTEND_PERIOD"] += 2.5 * low_change
         if a >= 70 and abs_delta_max >= 2.0:
-            scores["FIX_CAUSE"] += 0.8
-            scores["TUNE_VARIABLE"] += 0.8
+            scores["FIX_CAUSE"] += 0.6
+            scores["TUNE_VARIABLE"] += 0.6
         return scores
 
     if label is None:
@@ -401,15 +383,12 @@ def _pick_next_action_by_label(
     if a < 50 and "ROUTINE" in priority:
         priority = ["ROUTINE"] + [x for x in priority if x != "ROUTINE"]
 
-    if worsened_cnt > improved_cnt and "FIX_CAUSE" in priority:
+    if down_cnt > up_cnt and "FIX_CAUSE" in priority:
         priority = ["FIX_CAUSE"] + [x for x in priority if x != "FIX_CAUSE"]
 
     pick = priority[0]
     return random.choice(templates[pick])
 
-
-
-# 코멘트 문장 생성
 
 def _ai_comment_one_or_two_sentences(
     attendance_rate: float,
@@ -419,7 +398,7 @@ def _ai_comment_one_or_two_sentences(
     next_action: Optional[str],
 ) -> str:
     succ = _success_phrase(success_rate)
-    att_i = _att_floor_int(attendance_rate) 
+    att_i = _att_floor_int(attendance_rate)
 
     if top:
         verb = _change_verb(top["before"], top["after"])
@@ -468,9 +447,6 @@ def _ai_comment_one_or_two_sentences(
     return first
 
 
-
-# API
-
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -478,41 +454,43 @@ def health():
 
 @app.post("/ai/comments", response_model=AiCommentGenerateResponse)
 def ai_comments(req: CommentReq):
+    # 오늘 기록이 아예 없을 때만 요약/코멘트 생성 안 함
+    if not req.metrics:
+        return AiCommentGenerateResponse(comment="오늘 기록이 없어서 요약을 생성할 수 없어요.")
+
     analyzed: List[Dict] = []
     for m in req.metrics:
-        improved = _is_improved(m.before, m.after, m.polarity)
+        direction = _direction(m.before, m.after)
         abs_change = abs(m.after - m.before)
-        utility = _utility_score(m.before, m.after, m.polarity)
+        utility = _utility_score(m.before, m.after)
 
         analyzed.append({
             "key": m.key,
             "before": m.before,
             "after": m.after,
-            "polarity": m.polarity,
-            "improved": improved,
+            "polarity": m.polarity,  # 호환용
+            "direction": direction,  # UP / DOWN / None
             "abs_change": abs_change,
             "delta_str": _fmt_delta(m.before, m.after),
             "utility": utility,
         })
 
-    improved_metrics = [x for x in analyzed if x["improved"] is True]
-    worsened_metrics = [x for x in analyzed if x["improved"] is False]
+    up_metrics = [x for x in analyzed if x["direction"] == "UP"]
+    down_metrics = [x for x in analyzed if x["direction"] == "DOWN"]
 
     abs_deltas = [x["abs_change"] for x in analyzed] or [0.0]
     abs_delta_mean = sum(abs_deltas) / len(abs_deltas)
     abs_delta_max = max(abs_deltas)
 
     top = _pick_top_metric(analyzed, req.topChangedMetricKey)
-
     att_tone = _attendance_tone_short(req.attendanceRate)
 
-    # 모델 라벨 예측
-    label = predict_label(req.metrics) 
+    label = predict_label(req.metrics)  # 있으면 사용, 없으면 폴백
     next_action = _pick_next_action_by_label(
         label=label,
         att=req.attendanceRate,
-        improved_cnt=len(improved_metrics),
-        worsened_cnt=len(worsened_metrics),
+        up_cnt=len(up_metrics),
+        down_cnt=len(down_metrics),
         abs_delta_mean=abs_delta_mean,
         abs_delta_max=abs_delta_max,
     )
