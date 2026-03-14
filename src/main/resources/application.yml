@@ -1,16 +1,18 @@
 spring:
   application:
     name: lifelab-be
-
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
   datasource:
-    url: ${DB_URL:jdbc:mysql://127.0.0.1:3307/lifelab?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=utf8&allowPublicKeyRetrieval=true}
-    username: ${DB_USERNAME:app}
-    password: ${DB_PASSWORD:apppass}
+    url: jdbc:mysql://127.0.0.1:3307/lifelab?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=utf8&allowPublicKeyRetrieval=true
+    username: app
+    password: apppass
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: validate   # Flyway가 스키마 관리하므로 validate 권장 (개발 중엔 update도 가능)
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
@@ -20,7 +22,23 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: true   # 기존 DB/볼륨이 있을 때 시작 편하게 해줌(개발용)
+    baseline-on-migrate: true
 
 server:
   port: 8080
+
+kakao:
+  client-id: "e495503a7d91c7a6c5ead02141386ffc"
+  client-secret: "z4PWq22lV9VjyncdGTzuNvKqvGmDOWGf"
+  redirect-uri: "http://localhost:8080/api/auth/kakao/callback"
+  auth-url: "https://kauth.kakao.com"
+  api-url: "https://kapi.kakao.com"
+
+app:
+  jwt:
+    secret: "CHANGE_ME_TO_A_VERY_LONG_RANDOM_SECRET_KEY_32_BYTES_MINIMUM_123456"
+    issuer: "lifelab"
+    access-token-exp-minutes: 60
+    cookie-name: "access_token"
+ai:
+  base-url: ${AI_BASE_URL:http://localhost:8000}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>로그인 성공</title>
+</head>
+<body style="font-family: sans-serif; padding: 24px;">
+<h2>로그인 성공 🎉</h2>
+<pre id="out">불러오는 중...</pre>
+
+<script>
+    // 서버가 쿠키(HttpOnly)에 JWT를 넣어줬다면, 그냥 /api/auth/me 호출만 하면 됨
+    fetch("/api/auth/me", { credentials: "include" })
+        .then(r => {
+            if (!r.ok) throw new Error("me 호출 실패: " + r.status);
+            return r.json();
+        })
+        .then(data => {
+            document.getElementById("out").textContent = JSON.stringify(data, null, 2);
+        })
+        .catch(err => {
+            document.getElementById("out").textContent = String(err);
+        });
+</script>
+</body>
+</html>
