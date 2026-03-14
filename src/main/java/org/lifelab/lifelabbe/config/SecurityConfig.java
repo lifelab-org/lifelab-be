@@ -22,7 +22,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/","/health","/api/auth/kakao/**", "/success.html",  "/api/experiments/calendar").permitAll()
+                        .requestMatchers("/","/health","/error","/actuator/health","/api/auth/kakao/**", "/success.html",  "/api/experiments/calendar").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, jwtProperties.getCookieName()),
