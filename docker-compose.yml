@@ -1,25 +1,32 @@
+version: "3.8"
+
 services:
+
   mysql-dev:
     image: mysql:8.0
     container_name: mysql-dev
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: lifelab
-      MYSQL_USER: app
-      MYSQL_PASSWORD: apppass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       TZ: Asia/Seoul
     ports:
       - "3307:3306"
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql-dev-data:/var/lib/mysql
+
   ai:
     build: ./ai
     container_name: lifelab-ai
+    restart: unless-stopped
     ports:
       - "8000:8000"
     command: uvicorn app.api:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - mysql-dev
 
 volumes:
   mysql-dev-data:
