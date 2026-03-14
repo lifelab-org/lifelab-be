@@ -24,9 +24,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/","/health","/error","/actuator/health","/api/auth/kakao/**", "/success.html",  "/api/experiments/calendar").permitAll()
                         .anyRequest().authenticated()
-                )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, jwtProperties.getCookieName()),
-                        UsernamePasswordAuthenticationFilter.class);
+                );
+                //.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, jwtProperties.getCookieName()),
+                //        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
