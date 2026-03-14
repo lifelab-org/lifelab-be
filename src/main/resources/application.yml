@@ -1,13 +1,15 @@
 spring:
   application:
     name: lifelab-be
+
   jackson:
     serialization:
       write-dates-as-timestamps: false
+
   datasource:
-    url: jdbc:mysql://127.0.0.1:3307/lifelab?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=utf8&allowPublicKeyRetrieval=true
-    username: app
-    password: apppass
+    url: jdbc:mysql://mysql-dev:3306/lifelab?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=utf8&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -28,17 +30,18 @@ server:
   port: 8080
 
 kakao:
-  client-id: "e495503a7d91c7a6c5ead02141386ffc"
-  client-secret: "z4PWq22lV9VjyncdGTzuNvKqvGmDOWGf"
-  redirect-uri: "http://localhost:8080/api/auth/kakao/callback"
-  auth-url: "https://kauth.kakao.com"
-  api-url: "https://kapi.kakao.com"
+  client-id: ${KAKAO_CLIENT_ID}
+  client-secret: ${KAKAO_CLIENT_SECRET}
+  redirect-uri: ${KAKAO_REDIRECT_URI}
+  auth-url: https://kauth.kakao.com
+  api-url: https://kapi.kakao.com
 
 app:
   jwt:
-    secret: "CHANGE_ME_TO_A_VERY_LONG_RANDOM_SECRET_KEY_32_BYTES_MINIMUM_123456"
-    issuer: "lifelab"
+    secret: ${JWT_SECRET}
+    issuer: lifelab
     access-token-exp-minutes: 60
-    cookie-name: "access_token"
+    cookie-name: access_token
+
 ai:
-  base-url: ${AI_BASE_URL:http://localhost:8000}
+  base-url: ${AI_BASE_URL:http://lifelab-ai:8000}
