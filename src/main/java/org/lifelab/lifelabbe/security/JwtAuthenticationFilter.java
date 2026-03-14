@@ -29,6 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 로그인 필요 없는 경로는 필터 건너뜀
         if (uri.equals("/") ||
                 uri.equals("/health") ||
+                uri.equals("/error") ||
+                uri.equals("/actuator/health") ||
                 uri.startsWith("/api/auth/kakao")) {
 
             filterChain.doFilter(request, response);
@@ -42,33 +44,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .map(Cookie::getValue).findFirst().orElse(null);
         }
 
-        if (token != null) {
-            try {
-                Claims claims = jwtTokenProvider.parseClaims(token);
-                var auth = new UsernamePasswordAuthenticationToken(claims.getSubject(), null, Collections.emptyList());
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            } catch (Exception e) {
+        if (token == null || token.isBlank()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-                // 토큰 만료/무효 시 403 + JSON 반환
-                SecurityContextHolder.clearContext();
+        try {
+            Claims claims = jwtTokenProvider.parseClaims(token);
+            var auth = new UsernamePasswordAuthenticationToken(
+                    claims.getSubject(),
+                    null,
+                    Collections.emptyList()
+            );
+            SecurityContextHolder.getContext().setAuthentication(auth);
+        } catch (Exception e) {
 
-                response.setStatus(ErrorCode.KAKAO_COOKIE_EXPIRED.status());
-                response.setContentType("application/json;charset=UTF-8");
+            // 토큰 만료/무효 시 403 + JSON 반환
+            SecurityContextHolder.clearContext();
 
-                response.getWriter().write("""
-                    {
-                      "result": "Fail",
-                      "status": 403,
-                      "success": null,
-                      "error": {
-                        "code": "KAKAO_COOKIE_EXPIRED",
-                        "message": "로그인이 만료되었습니다. 다시 로그인해주세요."
-                      }
-                    }
-                    """);
+            response.setStatus(ErrorCode.KAKAO_COOKIE_EXPIRED.status());
+            response.setContentType("application/json;charset=UTF-8");
 
-                return;
-            }
+            response.getWriter().write("""
+                {
+                  "result": "Fail",
+                  "status": 403,
+                  "success": null,
+                  "error": {
+                    "code": "KAKAO_COOKIE_EXPIRED",
+                    "message": "로그인이 만료되었습니다. 다시 로그인해주세요."
+                  }
+                }
+                """);
+
+            return;
         }
 
         filterChain.doFilter(request, response);
