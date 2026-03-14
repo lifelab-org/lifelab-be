@@ -24,6 +24,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        String uri = request.getRequestURI();
+
+        // 로그인 필요 없는 경로는 필터 건너뜀
+        if (uri.equals("/") ||
+                uri.equals("/health") ||
+                uri.startsWith("/api/auth/kakao")) {
+
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String token = null;
         if (request.getCookies() != null) {
             token = Arrays.stream(request.getCookies())
