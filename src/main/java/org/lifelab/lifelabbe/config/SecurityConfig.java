@@ -18,16 +18,15 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        System.out.println("=== SECURITY CONFIG LOADED ==="); // ✅ 테스트
+
         http
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/","/health","/error","/actuator/health","/api/auth/kakao/**", "/success.html",  "/api/experiments/calendar").permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 );
-                //.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, jwtProperties.getCookieName()),
-                //        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
 }
