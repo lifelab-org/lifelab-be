@@ -1,11 +1,11 @@
 package org.lifelab.lifelabbe.common;
-
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -21,6 +21,7 @@ public class GlobalExceptionHandler {
     /** 400 - 검증 실패*/
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException e) {
+        log.error("Validation failed", e);
         return ResponseEntity
                 .status(ErrorCode.INVALID_PARAMETER.status())
                 .body(ApiResponse.fail(ErrorCode.INVALID_PARAMETER));
@@ -29,6 +30,7 @@ public class GlobalExceptionHandler {
     /** 400 - 잘못된 파라미터 */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(IllegalArgumentException e) {
+        log.error("Validation failed", e);
         return ResponseEntity
                 .status(ErrorCode.INVALID_PARAMETER.status())
                 .body(ApiResponse.fail(ErrorCode.INVALID_PARAMETER));
@@ -37,6 +39,7 @@ public class GlobalExceptionHandler {
     /** 403 - 권한 없음 */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleForbidden(AccessDeniedException e) {
+        log.error("Validation failed", e);
         return ResponseEntity
                 .status(ErrorCode.FORBIDDEN.status())
                 .body(ApiResponse.fail(ErrorCode.FORBIDDEN));
@@ -45,6 +48,7 @@ public class GlobalExceptionHandler {
     /** 500 - 서비스에러 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleServerError(Exception e) {
+        log.error("Validation failed", e);
         return ResponseEntity
                 .status(ErrorCode.SERVER_500.status())
                 .body(ApiResponse.fail(ErrorCode.SERVER_500));
