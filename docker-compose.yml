@@ -10,6 +10,9 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    environment:
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
     depends_on:
       - mysql-dev
       - ai
@@ -36,6 +39,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    environment: 
+      TZ: Asia/Seoul
     command: uvicorn app.api:app --host 0.0.0.0 --port 8000
     depends_on:
       - mysql-dev
