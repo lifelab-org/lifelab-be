@@ -28,6 +28,7 @@ spring:
 
 server:
   port: 8080
+  forward-headers-strategy: framework
 
 kakao:
   client-id: ${KAKAO_CLIENT_ID}
