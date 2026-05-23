@@ -42,6 +42,6 @@ public class KakaoAuthController {
         cookie.setMaxAge((int) (jwtProperties.getAccessTokenExpMinutes() * 60));
 
         response.addCookie(cookie);
-        response.sendRedirect("/success.html");
+        response.sendRedirect("https://lifelab-nine.vercel.app");
     }
 }
