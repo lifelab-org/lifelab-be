@@ -47,6 +47,6 @@ public class KakaoAuthController {
                 .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        response.sendRedirect("https://lifelab-nine.vercel.app/onboarding");
+        response.sendRedirect("https://lifelab-nine.vercel.app/");
     }
 }
