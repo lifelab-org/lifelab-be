@@ -1,6 +1,5 @@
 package org.lifelab.lifelabbe.controller;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.lifelab.lifelabbe.config.JwtProperties;
@@ -10,9 +9,12 @@ import org.lifelab.lifelabbe.dto.kakao.KakaoUserResponse;
 import org.lifelab.lifelabbe.security.JwtTokenProvider;
 import org.lifelab.lifelabbe.service.KakaoAuthService;
 import org.lifelab.lifelabbe.service.UserAuthService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.time.Duration;
 
 @RestController
 @RequiredArgsConstructor
@@ -36,12 +38,15 @@ public class KakaoAuthController {
 
         String jwt = jwtTokenProvider.createAccessToken(user.getId(), user.getKakaoId());
 
-        Cookie cookie = new Cookie(jwtProperties.getCookieName(), jwt);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        cookie.setMaxAge((int) (jwtProperties.getAccessTokenExpMinutes() * 60));
+        ResponseCookie cookie = ResponseCookie.from(jwtProperties.getCookieName(), jwt)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(Duration.ofMinutes(jwtProperties.getAccessTokenExpMinutes()))
+                .build();
 
-        response.addCookie(cookie);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         response.sendRedirect("https://lifelab-nine.vercel.app");
     }
 }
