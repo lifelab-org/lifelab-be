@@ -31,7 +31,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 uri.equals("/health") ||
                 uri.equals("/error") ||
                 uri.equals("/actuator/health") ||
-                uri.startsWith("/api/auth/kakao")) {
+                uri.equals("/success.html") ||
+                uri.startsWith("/api/auth/kakao") ||
+                uri.startsWith("/oauth2/") ||
+                uri.startsWith("/login/oauth2/")) {
 
             filterChain.doFilter(request, response);
             return;
