@@ -5,10 +5,16 @@ import org.lifelab.lifelabbe.security.JwtAuthenticationFilter;
 import org.lifelab.lifelabbe.security.JwtTokenProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
@@ -21,18 +27,19 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                // CSRF 비활성화 (JWT 사용 시 일반적으로 끔)
+                // CORS 활성화
+                .cors(Customizer.withDefaults())
+
+                // CSRF 비활성화
                 .csrf(csrf -> csrf.disable())
 
-                // 세션 사용 안함 (JWT 기반 인증)
+                // 세션 사용 안함
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
                 // 요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
-
-                        // 로그인 및 공개 API
                         .requestMatchers(
                                 "/",
                                 "/health",
@@ -43,7 +50,6 @@ public class SecurityConfig {
                                 "/success.html"
                         ).permitAll()
 
-                        // 그 외 모든 API는 인증 필요
                         .anyRequest().authenticated()
                 )
 
@@ -57,5 +63,33 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(List.of(
+                "https://lifelab-nine.vercel.app",
+                "http://localhost:5173",
+                "http://localhost:3000"
+        ));
+
+        configuration.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+
+        configuration.setAllowedHeaders(List.of("*"));
+
+        // 쿠키 주고받으려면 필수
+        configuration.setAllowCredentials(true);
+
+        // Set-Cookie 헤더 노출
+        configuration.setExposedHeaders(List.of("Set-Cookie"));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
     }
 }
