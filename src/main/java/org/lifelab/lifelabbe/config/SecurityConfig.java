@@ -46,7 +46,6 @@ public class SecurityConfig {
                         // 그 외 모든 API는 인증 필요
                         .anyRequest().authenticated()
                 )
-                .oauth2Login(oauth2 -> oauth2.permitAll())
 
                 // JWT 인증 필터 등록
                 .addFilterBefore(
