@@ -23,7 +23,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ExperimentService {
-
+    //  사용자당 실험 최대 개수
+    private static final int MAX_EXPERIMENT_COUNT = 10;
     private final ExperimentRepository experimentRepository;
     private final ExperimentPreStateValueRepository preStateValueRepository;
     private final DailyRecordRepository dailyRecordRepository;
@@ -76,7 +77,8 @@ public class ExperimentService {
 
         validateDates(req.startDate(), req.endDate());
         validateRecordItems(req.recordItems());
-
+        // 실험 개수 최대 10개 제한
+        validateExperimentCount(userId);
         ExperimentStatus status =
                 determineStatus(req.startDate(), req.endDate());
 
@@ -279,6 +281,14 @@ public class ExperimentService {
 
         if (items.size() > 10)
             throw new GlobalException(ErrorCode.TOO_MANY_RECORD_ITEMS);
+    }
+    // 사용자별 실험 개수 검증
+    private void validateExperimentCount(Long userId) {
+        long experimentCount = experimentRepository.countByUserId(userId);
+
+        if (experimentCount >= MAX_EXPERIMENT_COUNT) {
+            throw new GlobalException(ErrorCode.TOO_MANY_EXPERIMENTS);
+        }
     }
 
     private ExperimentStatus determineStatus(

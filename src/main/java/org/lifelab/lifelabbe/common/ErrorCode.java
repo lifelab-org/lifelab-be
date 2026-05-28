@@ -8,6 +8,7 @@ public enum ErrorCode {
     INVALID_DATE_RANGE(400, "INVALID_DATE_RANGE", "startDate는 endDate보다 늦을 수 없습니다."),
     DUPLICATE_RECORD_ITEM(400, "DUPLICATE_RECORD_ITEM", "recordItems.name이 중복되었습니다."),
     TOO_MANY_RECORD_ITEMS(400, "TOO_MANY_RECORD_ITEMS", "recordItems는 최대 10개까지 가능합니다."),
+    TOO_MANY_EXPERIMENTS(400, "TOO_MANY_EXPERIMENTS", "실험은 최대 10개까지 생성할 수 있습니다."),
     PRE_STATE_ITEMS_MISMATCH(400, "PRE_STATE_ITEMS_MISMATCH", "실험의 기록 항목과 요청 항목이 일치하지 않습니다."),
     AI_400(400, "AI_400", "요약을 생성하기에 충분한 기록이 없습니다."),
     /* 401 */
