@@ -3,6 +3,7 @@ package org.lifelab.lifelabbe.dto.experiment;
 public record HomeOngoingExperimentResponse(
         Long experimentId,
         String title,
+        String color, //홈에서 실험별 색상 표시
         Integer dDay,
         String dDayLabel,
         boolean preStateRecorded,
@@ -12,6 +13,7 @@ public record HomeOngoingExperimentResponse(
     public static HomeOngoingExperimentResponse of(
             Long experimentId,
             String title,
+            String color,
             int rawDDay,
             boolean preStateRecorded,
             TodayRecordStatus todayRecordStatus
@@ -50,6 +52,7 @@ public record HomeOngoingExperimentResponse(
         return new HomeOngoingExperimentResponse(
                 experimentId,
                 title,
+                color,
                 outDDay,
                 outDDayLabel,
                 preStateRecorded,

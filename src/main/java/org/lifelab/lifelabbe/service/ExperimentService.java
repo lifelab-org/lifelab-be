@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,6 +27,22 @@ import java.util.stream.Collectors;
 public class ExperimentService {
     //  사용자당 실험 최대 개수
     private static final int MAX_EXPERIMENT_COUNT = 10;
+
+    //홈/캘린더에서 사용할 실험 색상 팔레트
+    private static final List<String> EXPERIMENT_COLOR_PALETTE = List.of(
+            "#AFCBEA", // 소프트 스카이블루
+            "#F2B885", // 소프트 피치 오렌지
+            "#EFD37A", // 버터 옐로우
+            "#B8B0AA", // 웜 그레이
+            "#CDB7E8", // 라일락
+            "#A8D5BA", // 세이지 그린
+            "#F3C4D5", // 파스텔 핑크
+            "#BFE0E7", // 민트 블루
+            "#D9C6A5", // 베이지
+            "#C7D9A5", // 라이트 올리브
+            "#E6CBA8", // 샌드 베이지
+            "#D7C9F2"  // 연보라
+    );
     private final ExperimentRepository experimentRepository;
     private final ExperimentPreStateValueRepository preStateValueRepository;
     private final DailyRecordRepository dailyRecordRepository;
@@ -81,6 +99,7 @@ public class ExperimentService {
         validateExperimentCount(userId);
         ExperimentStatus status =
                 determineStatus(req.startDate(), req.endDate());
+        String color = assignExperimentColor(userId);
 
         Experiment experiment = Experiment.builder()
                 .userId(userId)
@@ -89,6 +108,7 @@ public class ExperimentService {
                 .startDate(req.startDate())
                 .endDate(req.endDate())
                 .status(status)
+                .color(color)
                 .build();
 
         for (var itemReq : req.recordItems()) {
@@ -151,6 +171,7 @@ public class ExperimentService {
                             return HomeOngoingExperimentResponse.of(
                                     e.getId(),
                                     e.getTitle(),
+                                    e.getColor(),
                                     rawDDay,
                                     preStateRecorded,
                                     todayRecordStatus
@@ -214,6 +235,7 @@ public class ExperimentService {
                     return HomeUpcomingExperimentResponse.of(
                             e.getId(),
                             e.getTitle(),
+                            e.getColor(),
                             dDay
                     );
                 })
@@ -289,6 +311,24 @@ public class ExperimentService {
         if (experimentCount >= MAX_EXPERIMENT_COUNT) {
             throw new GlobalException(ErrorCode.TOO_MANY_EXPERIMENTS);
         }
+    }
+    // 사용자별 기존 색상과 겹치지 않게 색상 랜덤 배정
+    private String assignExperimentColor(Long userId) {
+        Set<String> usedColors =
+                new HashSet<>(experimentRepository.findUsedColorsByUserId(userId));
+
+        List<String> availableColors =
+                new ArrayList<>(EXPERIMENT_COLOR_PALETTE);
+
+        availableColors.removeAll(usedColors);
+
+        if (availableColors.isEmpty()) {
+            throw new GlobalException(ErrorCode.TOO_MANY_EXPERIMENTS);
+        }
+
+        Collections.shuffle(availableColors);
+
+        return availableColors.get(0);
     }
 
     private ExperimentStatus determineStatus(
