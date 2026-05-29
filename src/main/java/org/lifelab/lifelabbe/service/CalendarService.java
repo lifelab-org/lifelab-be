@@ -42,6 +42,7 @@ public class CalendarService {
                         .map(e -> new CalendarExperimentDto(
                                 e.getId(),
                                 e.getTitle(),
+                                e.getColor(),
                                 e.getStartDate(),
                                 e.getEndDate()
                         ))

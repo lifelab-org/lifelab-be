@@ -36,6 +36,9 @@ public class Experiment {
     @Column(nullable = false, length = 20)
     private ExperimentStatus status;
 
+    @Column(length = 20)
+    private String color; // 홈/캘린더에서 사용할 실험 색상
+
     @Column(nullable = false)
     private boolean resultChecked = false;
 
@@ -43,13 +46,14 @@ public class Experiment {
     private List<RecordItem> recordItems = new ArrayList<>();
 
     @Builder
-    public Experiment(Long userId, String title, String rule, LocalDate startDate, LocalDate endDate, ExperimentStatus status) {
+    public Experiment(Long userId, String title, String rule, LocalDate startDate, LocalDate endDate, ExperimentStatus status,String color) {
         this.userId = userId;
         this.title = title;
         this.rule = rule;
         this.startDate = startDate;
         this.endDate = endDate;
         this.status = status;
+        this.color = color;
         this.resultChecked = false;
     }
 

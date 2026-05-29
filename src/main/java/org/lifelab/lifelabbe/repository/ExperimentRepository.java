@@ -13,8 +13,16 @@ import java.util.Optional;
 
 public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
     //사용자별 실험 개수 조회
-
     long countByUserId(Long userId);
+
+    // 사용자별 이미 사용 중인 색상 조회
+    @Query("""
+        SELECT e.color FROM Experiment e
+        WHERE e.userId = :userId
+          AND e.color IS NOT NULL
+    """)
+    List<String> findUsedColorsByUserId(@Param("userId") Long userId);
+
     // status 기반 조회
     List<Experiment> findByUserIdAndStatusAndResultCheckedFalseOrderByEndDateAsc(
             Long userId,

@@ -11,6 +11,7 @@ public class CalendarExperimentDto {
 
     private Long experimentId;
     private String title;
+    private String color;
     private LocalDate startDate;
     private LocalDate endDate;
 }
