@@ -15,14 +15,26 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
     //사용자별 실험 개수 조회
     long countByUserId(Long userId);
 
-    // 사용자별 이미 사용 중인 색상 조회
+    // 진행중 + 진행예정 실험 개수만 조회
+    // 결과확인이 완료된 실험(resultChecked=true)은 제한 개수에서 제외
+    long countByUserIdAndStatusInAndResultCheckedFalse(
+            Long userId,
+            List<ExperimentStatus> statuses
+    );
+
+    //진행중 + 진행예정 실험에서 이미 사용 중인 색상만 조회
+    // 완료/아카이브된 실험의 색상은 다시 사용할 수 있음
     @Query("""
         SELECT e.color FROM Experiment e
         WHERE e.userId = :userId
           AND e.color IS NOT NULL
+          AND e.status IN :statuses
+          AND e.resultChecked = false
     """)
-    List<String> findUsedColorsByUserId(@Param("userId") Long userId);
-
+    List<String> findUsedColorsByUserIdAndStatusInAndResultCheckedFalse(
+            @Param("userId") Long userId,
+            @Param("statuses") List<ExperimentStatus> statuses
+    );
     // status 기반 조회
     List<Experiment> findByUserIdAndStatusAndResultCheckedFalseOrderByEndDateAsc(
             Long userId,
