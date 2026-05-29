@@ -70,6 +70,7 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
     WHERE e.userId = :userId
       AND e.startDate <= :endDate
       AND e.endDate >= :startDate
+      AND e.resultChecked = false
 """)
     List<Experiment> findByUserIdAndDateOverlap(
             @Param("userId") Long userId,
