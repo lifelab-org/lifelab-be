@@ -25,9 +25,14 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ExperimentService {
-    //  사용자당 실험 최대 개수
-    private static final int MAX_EXPERIMENT_COUNT = 10;
+    // 사용자당 전체 실험 개수가 아니라, 진행중 + 진행예정 실험 최대 개수
+    private static final int MAX_ACTIVE_EXPERIMENT_COUNT = 10;
 
+    // 제한 개수에 포함할 실험 상태
+    private static final List<ExperimentStatus> ACTIVE_EXPERIMENT_STATUSES = List.of(
+            ExperimentStatus.UPCOMING,
+            ExperimentStatus.ONGOING
+    );
     //홈/캘린더에서 사용할 실험 색상 팔레트
     private static final List<String> EXPERIMENT_COLOR_PALETTE = List.of(
             "#AFCBEA", // 소프트 스카이블루
@@ -95,8 +100,8 @@ public class ExperimentService {
 
         validateDates(req.startDate(), req.endDate());
         validateRecordItems(req.recordItems());
-        // 실험 개수 최대 10개 제한
-        validateExperimentCount(userId);
+        // 전체 실험 개수가 아니라 진행중 + 진행예정 실험만 최대 10개 제한
+        validateActiveExperimentCount(userId);
         ExperimentStatus status =
                 determineStatus(req.startDate(), req.endDate());
         String color = assignExperimentColor(userId);
@@ -304,18 +309,28 @@ public class ExperimentService {
         if (items.size() > 10)
             throw new GlobalException(ErrorCode.TOO_MANY_RECORD_ITEMS);
     }
-    // 사용자별 실험 개수 검증
-    private void validateExperimentCount(Long userId) {
-        long experimentCount = experimentRepository.countByUserId(userId);
+    // 사용자별 전체 실험 개수 검증이 아니라 진행중 + 진행예정 실험 개수 검증
+    private void validateActiveExperimentCount(Long userId) {
+        long activeExperimentCount =
+                experimentRepository.countByUserIdAndStatusInAndResultCheckedFalse(
+                        userId,
+                        ACTIVE_EXPERIMENT_STATUSES
+                );
 
-        if (experimentCount >= MAX_EXPERIMENT_COUNT) {
+        if (activeExperimentCount >= MAX_ACTIVE_EXPERIMENT_COUNT) {
             throw new GlobalException(ErrorCode.TOO_MANY_EXPERIMENTS);
         }
     }
-    // 사용자별 기존 색상과 겹치지 않게 색상 랜덤 배정
+    // 사용자별 기존 색상 전체가 아니라, 진행중 + 진행예정 실험 색상만 제외
+    // 완료/아카이브된 실험의 색상은 다시 사용할 수 있음
     private String assignExperimentColor(Long userId) {
         Set<String> usedColors =
-                new HashSet<>(experimentRepository.findUsedColorsByUserId(userId));
+                new HashSet<>(
+                        experimentRepository.findUsedColorsByUserIdAndStatusInAndResultCheckedFalse(
+                                userId,
+                                ACTIVE_EXPERIMENT_STATUSES
+                        )
+                );
 
         List<String> availableColors =
                 new ArrayList<>(EXPERIMENT_COLOR_PALETTE);
